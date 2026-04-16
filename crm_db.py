@@ -46,7 +46,7 @@ def _execute(sql, params=None, fetch=None):
                     return row[0] if row else None
                 if fetch == "lastrowid":
                     row = cur.fetchone()
-                    return row[0] if row else None
+                    return list(row.values())[0] if row else None
     finally:
         conn.close()
 
@@ -90,10 +90,40 @@ def inicializar_db():
                         fecha_registro      TEXT NOT NULL
                     )
                 """)
+                cur.execute("""
+                    CREATE TABLE IF NOT EXISTS temas_config (
+                        id     SERIAL PRIMARY KEY,
+                        nombre TEXT NOT NULL UNIQUE,
+                        orden  INTEGER NOT NULL DEFAULT 0
+                    )
+                """)
+                # Migración: añadir columnas de tareas si no existen
+                cur.execute("""
+                    ALTER TABLE visitas
+                    ADD COLUMN IF NOT EXISTS tarea_estado TEXT DEFAULT 'pendiente'
+                """)
+                cur.execute("""
+                    ALTER TABLE visitas
+                    ADD COLUMN IF NOT EXISTS tarea_resultado TEXT
+                """)
+                cur.execute("""
+                    ALTER TABLE visitas
+                    ADD COLUMN IF NOT EXISTS tarea_fecha_cierre TEXT
+                """)
                 # Comercial por defecto
                 cur.execute("SELECT COUNT(*) FROM comerciales")
                 if cur.fetchone()[0] == 0:
                     cur.execute("INSERT INTO comerciales (nombre) VALUES ('Comercial Principal')")
+                # Temas por defecto
+                cur.execute("SELECT COUNT(*) FROM temas_config")
+                if cur.fetchone()[0] == 0:
+                    temas_default = [
+                        "Precios", "Stock / disponibilidad", "Garantía", "Soporte técnico",
+                        "Nuevo producto", "Oferta específica", "Reclamación",
+                        "Pago / facturación", "Formación", "Otro"
+                    ]
+                    for i, t in enumerate(temas_default):
+                        cur.execute("INSERT INTO temas_config (nombre, orden) VALUES (%s, %s)", (t, i))
     finally:
         conn.close()
 
@@ -313,7 +343,11 @@ def stats_resumen_global():
     anyo = _execute("SELECT COUNT(*) AS n FROM visitas WHERE fecha >= %s", (anyo_inicio,), fetch="one")["n"]
     clientes_total = _execute("SELECT COUNT(*) AS n FROM clientes", fetch="one")["n"]
     pipeline = _execute(
-        "SELECT COALESCE(SUM(importe_estimado),0) AS n FROM visitas WHERE oportunidad IN ('Media','Alta')",
+        "SELECT COALESCE(SUM(importe_estimado),0) AS n FROM visitas WHERE importe_estimado > 0",
+        fetch="one"
+    )["n"]
+    pipeline_alta = _execute(
+        "SELECT COALESCE(SUM(importe_estimado),0) AS n FROM visitas WHERE oportunidad IN ('Media','Alta') AND importe_estimado > 0",
         fetch="one"
     )["n"]
 
@@ -323,4 +357,120 @@ def stats_resumen_global():
         "visitas_anyo": anyo,
         "total_clientes": clientes_total,
         "pipeline_euros": pipeline,
+        "pipeline_alta_euros": pipeline_alta,
     }
+
+
+# ─────────────────────────────────────────────
+# TEMAS CONFIGURABLES
+# ─────────────────────────────────────────────
+
+def get_temas():
+    rows = _execute("SELECT * FROM temas_config ORDER BY orden, nombre", fetch="all")
+    return [r["nombre"] for r in rows]
+
+
+def add_tema(nombre):
+    orden = _execute("SELECT COALESCE(MAX(orden),0)+1 AS n FROM temas_config", fetch="one")["n"]
+    _execute("INSERT INTO temas_config (nombre, orden) VALUES (%s, %s)", (nombre.strip(), orden))
+
+
+def delete_tema(nombre):
+    _execute("DELETE FROM temas_config WHERE nombre=%s", (nombre,))
+
+
+def reordenar_temas(lista_nombres):
+    for i, nombre in enumerate(lista_nombres):
+        _execute("UPDATE temas_config SET orden=%s WHERE nombre=%s", (i, nombre))
+
+
+# ─────────────────────────────────────────────
+# EXPORTACIÓN / BACKUP
+# ─────────────────────────────────────────────
+
+def exportar_visitas_csv():
+    """Devuelve todas las visitas como DataFrame para exportar."""
+    import pandas as pd
+    rows = _execute("""
+        SELECT v.id, v.fecha, c.nombre AS cliente, c.zona, c.telefono,
+               co.nombre AS comercial, v.tipo_contacto, v.temas,
+               v.comentarios, v.seguimiento, v.fecha_seguimiento,
+               v.oportunidad, v.importe_estimado, v.fecha_registro
+        FROM visitas v
+        JOIN clientes c ON v.cliente_id = c.id
+        JOIN comerciales co ON v.comercial_id = co.id
+        ORDER BY v.fecha DESC
+    """, fetch="all")
+    return pd.DataFrame(rows) if rows else pd.DataFrame()
+
+
+def exportar_clientes_csv():
+    import pandas as pd
+    rows = _execute("SELECT * FROM clientes ORDER BY nombre", fetch="all")
+    return pd.DataFrame(rows) if rows else pd.DataFrame()
+
+
+# ─────────────────────────────────────────────
+# TAREAS / SEGUIMIENTOS
+# ─────────────────────────────────────────────
+
+def get_tareas_pendientes(comercial_id=None):
+    """Visitas con seguimiento definido y tarea aún pendiente."""
+    sql = """
+        SELECT v.*, c.nombre AS cliente_nombre, c.zona, c.telefono,
+               co.nombre AS comercial_nombre
+        FROM visitas v
+        JOIN clientes c ON v.cliente_id = c.id
+        JOIN comerciales co ON v.comercial_id = co.id
+        WHERE v.seguimiento IS NOT NULL
+          AND v.seguimiento != ''
+          AND (v.tarea_estado IS NULL OR v.tarea_estado = 'pendiente')
+    """
+    params = []
+    if comercial_id:
+        sql += " AND v.comercial_id = %s"
+        params.append(comercial_id)
+    sql += " ORDER BY v.fecha_seguimiento ASC NULLS LAST, v.fecha DESC"
+    return _execute(sql, params, fetch="all")
+
+
+def get_tareas_completadas(comercial_id=None, limite=50):
+    """Historial de tareas ya completadas."""
+    sql = """
+        SELECT v.*, c.nombre AS cliente_nombre, c.zona,
+               co.nombre AS comercial_nombre
+        FROM visitas v
+        JOIN clientes c ON v.cliente_id = c.id
+        JOIN comerciales co ON v.comercial_id = co.id
+        WHERE v.tarea_estado = 'completada'
+    """
+    params = []
+    if comercial_id:
+        sql += " AND v.comercial_id = %s"
+        params.append(comercial_id)
+    sql += " ORDER BY v.tarea_fecha_cierre DESC LIMIT %s"
+    params.append(limite)
+    return _execute(sql, params, fetch="all")
+
+
+def completar_tarea(visita_id, resultado):
+    """Marca una tarea como completada con su resultado."""
+    from datetime import datetime
+    _execute("""
+        UPDATE visitas
+        SET tarea_estado = 'completada',
+            tarea_resultado = %s,
+            tarea_fecha_cierre = %s
+        WHERE id = %s
+    """, (resultado, datetime.now().strftime("%Y-%m-%d %H:%M"), visita_id))
+
+
+def reabrir_tarea(visita_id):
+    """Reactiva una tarea completada."""
+    _execute("""
+        UPDATE visitas
+        SET tarea_estado = 'pendiente',
+            tarea_resultado = NULL,
+            tarea_fecha_cierre = NULL
+        WHERE id = %s
+    """, (visita_id,))

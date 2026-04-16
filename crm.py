@@ -16,8 +16,8 @@ import crm_ia as ia
 # CONFIGURACIÓN
 # ─────────────────────────────────────────────
 st.set_page_config(
-    page_title="CRM Visitas · Viamar",
-    page_icon="⚓",
+    page_title="CRM Visitas · Sun Ibiza",
+    page_icon="☀️",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -98,6 +98,45 @@ if "chat_historia" not in st.session_state:
     st.session_state.chat_historia = []
 if "api_key" not in st.session_state:
     st.session_state.api_key = ""
+if "rol" not in st.session_state:
+    st.session_state.rol = None  # None = no logueado
+if "cliente_id_nueva_visita" not in st.session_state:
+    st.session_state.cliente_id_nueva_visita = None
+
+
+# ─────────────────────────────────────────────
+# LOGIN
+# ─────────────────────────────────────────────
+def pantalla_login():
+    col_center = st.columns([1, 2, 1])[1]
+    with col_center:
+        try:
+            st.image("logo.png", width=200)
+        except Exception:
+            st.markdown("## ⚓ Viamar CRM")
+        st.markdown("---")
+        st.markdown("### CRM de Visitas Comerciales")
+        clave = st.text_input("Contraseña", type="password", placeholder="Introduce tu contraseña")
+        if st.button("Entrar", type="primary", use_container_width=True):
+            try:
+                pwd_control   = st.secrets["PWD_CONTROL"]    # lista con dos contraseñas
+                pwd_comercial = st.secrets["PWD_COMERCIAL"]
+            except Exception:
+                pwd_control   = ["0077", "1919"]
+                pwd_comercial = "1234"
+
+            if clave in pwd_control:
+                st.session_state.rol = "control"
+                st.rerun()
+            elif clave == pwd_comercial:
+                st.session_state.rol = "comercial"
+                st.rerun()
+            else:
+                st.error("Contraseña incorrecta")
+
+if st.session_state.rol is None:
+    pantalla_login()
+    st.stop()
 
 
 # ─────────────────────────────────────────────
@@ -105,12 +144,13 @@ if "api_key" not in st.session_state:
 # ─────────────────────────────────────────────
 TIPO_CONTACTO_OPS = ["Presencial", "Telefónico", "Email", "Videollamada", "Feria/Evento"]
 OPORTUNIDAD_OPS   = ["Ninguna", "Baja", "Media", "Alta"]
-TEMAS_OPS = [
-    "Precios", "Stock / disponibilidad", "Garantía", "Soporte técnico",
-    "Nuevo producto", "Oferta específica", "Reclamación",
-    "Pago / facturación", "Formación", "Otro"
-]
 COLOR_OPO = {"Ninguna": "#94a3b8", "Baja": "#60a5fa", "Media": "#f59e0b", "Alta": "#22c55e"}
+
+def get_temas_ops():
+    try:
+        return db.get_temas()
+    except Exception:
+        return ["Precios", "Stock", "Garantía", "Soporte técnico", "Otro"]
 
 def _api_key():
     """Obtiene la API key: primero secrets de Streamlit, luego session_state."""
@@ -125,18 +165,22 @@ def _api_key():
 # ─────────────────────────────────────────────
 with st.sidebar:
     try:
-        st.image("LOGO-viamar.jpg", use_container_width=True)
+        st.image("logo.png", width=200)
     except Exception:
         st.markdown("## ⚓ Viamar CRM")
 
     st.markdown("---")
-    pagina = st.radio(
-        "Navegación",
-        ["📊 Dashboard", "➕ Nueva Visita", "📋 Visitas", "👥 Clientes", "📈 Informes IA"],
-        label_visibility="collapsed"
-    )
+
+    # Menú según rol
+    if st.session_state.rol == "control":
+        opciones_menu = ["📊 Dashboard", "➕ Nueva Visita", "📋 Visitas", "👥 Clientes", "✅ Tareas", "📈 Informes IA", "⚙️ Configuración"]
+    else:
+        opciones_menu = ["➕ Nueva Visita", "📋 Visitas", "👥 Clientes", "✅ Tareas"]
+
+    pagina = st.radio("Navegación", opciones_menu, label_visibility="collapsed")
 
     st.markdown("---")
+
     # Comercial activo
     try:
         comerciales = db.get_comerciales()
@@ -152,28 +196,34 @@ with st.sidebar:
     comercial_sel_nombre = st.selectbox("Comercial", nombres_com)
     comercial_sel = next(c for c in comerciales if c["nombre"] == comercial_sel_nombre)
 
-    # API Key (solo si no está en secrets)
-    try:
-        st.secrets["ANTHROPIC_API_KEY"]
-        st.success("API IA configurada", icon="🤖")
-    except Exception:
-        api_key_input = st.text_input("API Key Anthropic", type="password",
-                                       value=st.session_state.api_key,
-                                       help="Pega aquí tu API Key de Anthropic")
-        if api_key_input:
-            st.session_state.api_key = api_key_input
+    # API Key solo en modo control
+    if st.session_state.rol == "control":
+        try:
+            st.secrets["ANTHROPIC_API_KEY"]
+            st.success("API IA configurada", icon="🤖")
+        except Exception:
+            api_key_input = st.text_input("API Key Anthropic", type="password",
+                                           value=st.session_state.api_key,
+                                           help="Pega aquí tu API Key de Anthropic")
+            if api_key_input:
+                st.session_state.api_key = api_key_input
+
+        st.markdown("---")
+        with st.expander("+ Añadir comercial"):
+            nuevo_com = st.text_input("Nombre", key="input_nuevo_com")
+            if st.button("Añadir"):
+                if nuevo_com.strip():
+                    try:
+                        db.add_comercial(nuevo_com)
+                        st.success("Añadido")
+                        st.rerun()
+                    except Exception as e:
+                        st.error(str(e))
 
     st.markdown("---")
-    with st.expander("+ Añadir comercial"):
-        nuevo_com = st.text_input("Nombre", key="input_nuevo_com")
-        if st.button("Añadir"):
-            if nuevo_com.strip():
-                try:
-                    db.add_comercial(nuevo_com)
-                    st.success("Añadido")
-                    st.rerun()
-                except Exception as e:
-                    st.error(str(e))
+    if st.button("🚪 Cerrar sesión", use_container_width=True):
+        st.session_state.rol = None
+        st.rerun()
 
 
 # ══════════════════════════════════════════════
@@ -190,12 +240,13 @@ if pagina == "📊 Dashboard":
         st.stop()
 
     anyo_actual = date.today().year
-    k1, k2, k3, k4, k5 = st.columns(5)
+    k1, k2, k3, k4, k5, k6 = st.columns(6)
     k1.metric("Total visitas", resumen["total_visitas"])
     k2.metric("Visitas este mes", resumen["visitas_mes"])
     k3.metric("Visitas este año", resumen["visitas_anyo"])
     k4.metric("Clientes", resumen["total_clientes"])
-    k5.metric("Pipeline €", f"{resumen['pipeline_euros']:,.0f} €")
+    k5.metric("Importe registrado €", f"{resumen['pipeline_euros']:,.0f} €")
+    k6.metric("Oportunidades calientes €", f"{resumen['pipeline_alta_euros']:,.0f} €")
 
     st.markdown("---")
 
@@ -253,6 +304,98 @@ if pagina == "📊 Dashboard":
             st.plotly_chart(fig, use_container_width=True)
         else:
             st.info("Sin datos")
+
+    st.markdown("---")
+
+    # ── Informe Agenda ──
+    with st.expander("📄 Generar informe agenda de visitas (exportable a PDF)"):
+        ag1, ag2, ag3 = st.columns([2, 2, 1])
+        ag_desde = ag1.date_input("Desde", value=date.today().replace(day=1), key="ag_desde")
+        ag_hasta = ag2.date_input("Hasta", value=date.today(), key="ag_hasta")
+        ag_todos = ag3.checkbox("Todos los comerciales")
+
+        if st.button("📋 Generar agenda", type="primary"):
+            visitas_ag = db.get_visitas(
+                comercial_id=None if ag_todos else comercial_sel["id"],
+                fecha_desde=ag_desde,
+                fecha_hasta=ag_hasta
+            )
+            if not visitas_ag:
+                st.info("No hay visitas en ese periodo.")
+            else:
+                st.session_state["agenda_visitas"] = visitas_ag
+                st.session_state["agenda_desde"]   = ag_desde
+                st.session_state["agenda_hasta"]   = ag_hasta
+
+        if "agenda_visitas" in st.session_state and st.session_state["agenda_visitas"]:
+            visitas_ag = st.session_state["agenda_visitas"]
+            ag_desde_s = st.session_state["agenda_desde"]
+            ag_hasta_s = st.session_state["agenda_hasta"]
+
+            COLOR_OPO_BD = {"Alta": "#22c55e", "Media": "#f59e0b", "Baja": "#60a5fa", "Ninguna": "#94a3b8"}
+
+            # Construir HTML del informe
+            filas_html = ""
+            for v in visitas_ag:
+                borde = COLOR_OPO_BD.get(v.get("oportunidad","Ninguna"), "#94a3b8")
+                seg = ""
+                if v.get("seguimiento"):
+                    seg = f"<p style='margin:4px 0 0;font-size:0.85em;color:#64748b'>🔔 {v['seguimiento']}"
+                    if v.get("fecha_seguimiento"):
+                        seg += f" ({v['fecha_seguimiento']})"
+                    seg += "</p>"
+                filas_html += f"""
+                <div style='border-left:4px solid {borde};padding:10px 14px;
+                            margin-bottom:10px;background:#fafafa;border-radius:6px;
+                            page-break-inside:avoid'>
+                    <div style='display:flex;justify-content:space-between'>
+                        <strong style='font-size:1em'>{v['fecha']} — {v['cliente_nombre']}</strong>
+                        <span style='font-size:0.82em;color:#64748b'>{v['tipo_contacto']} | {v.get('oportunidad','')}</span>
+                    </div>
+                    {f"<p style='margin:4px 0;font-size:0.85em;color:#888'>🏷️ {v['temas']}</p>" if v.get('temas') else ''}
+                    <p style='margin:6px 0 0;line-height:1.6'>{v.get('comentarios','')}</p>
+                    {seg}
+                </div>"""
+
+            html_completo = f"""
+            <html><head><meta charset='utf-8'>
+            <style>
+                body {{ font-family: Arial, sans-serif; font-size: 13px; color: #1a2b4a; padding: 24px; }}
+                h1 {{ color: #1a2b4a; border-bottom: 2px solid #1a73e8; padding-bottom: 8px; }}
+                h2 {{ color: #1a73e8; font-size: 1em; margin-bottom: 16px; }}
+                @media print {{ body {{ padding: 0; }} }}
+            </style></head>
+            <body>
+                <h1>📋 Informe de Visitas — Sun Ibiza</h1>
+                <h2>Periodo: {ag_desde_s.strftime('%d/%m/%Y')} — {ag_hasta_s.strftime('%d/%m/%Y')} &nbsp;|&nbsp; {len(visitas_ag)} visitas</h2>
+                {filas_html}
+            </body></html>"""
+
+            # Mostrar en pantalla
+            st.markdown(f"**{len(visitas_ag)} visitas del {ag_desde_s.strftime('%d/%m/%Y')} al {ag_hasta_s.strftime('%d/%m/%Y')}**")
+            for v in visitas_ag:
+                borde = COLOR_OPO_BD.get(v.get("oportunidad","Ninguna"), "#94a3b8")
+                st.markdown(f"""
+                <div style='border-left:4px solid {borde};padding:10px 14px;
+                            margin-bottom:8px;background:white;border-radius:6px;
+                            box-shadow:0 1px 3px rgba(0,0,0,0.06)'>
+                    <div style='display:flex;justify-content:space-between;margin-bottom:4px'>
+                        <strong>{v['fecha']} — {v['cliente_nombre']}</strong>
+                        <span style='font-size:0.82em;color:#64748b'>{v['tipo_contacto']} | {v.get('oportunidad','')}</span>
+                    </div>
+                    {f"<span style='font-size:0.82em;color:#888'>🏷️ {v['temas']}</span>" if v.get('temas') else ''}
+                    <p style='margin:6px 0 0;line-height:1.6'>{v.get('comentarios','')}</p>
+                    {f"<p style='margin:4px 0 0;font-size:0.85em;color:#64748b'>🔔 {v['seguimiento']}</p>" if v.get('seguimiento') else ''}
+                </div>""", unsafe_allow_html=True)
+
+            # Botón descarga HTML (se imprime como PDF desde el navegador)
+            st.download_button(
+                label="⬇️ Descargar informe (abrir y Ctrl+P para guardar como PDF)",
+                data=html_completo.encode("utf-8"),
+                file_name=f"agenda_visitas_{ag_desde_s.isoformat()}_{ag_hasta_s.isoformat()}.html",
+                mime="text/html"
+            )
+            st.caption("💡 Tip: abre el archivo descargado en el navegador y pulsa Ctrl+P → 'Guardar como PDF'")
 
     st.markdown("---")
 
@@ -375,8 +518,7 @@ elif pagina == "➕ Nueva Visita":
     st.subheader("1. Cliente")
     modo = st.radio("", ["Buscar cliente existente", "Crear cliente nuevo"], horizontal=True)
 
-    cliente_id = None
-
+    # Resetear cliente si cambia el modo
     if modo == "Buscar cliente existente":
         busq = st.text_input("Buscar por nombre o teléfono")
         clientes = db.get_clientes(busqueda=busq if busq else None)
@@ -384,7 +526,7 @@ elif pagina == "➕ Nueva Visita":
             opciones = {f"{c['nombre']} · {c.get('zona','-')} · {c.get('telefono','-')}": c["id"]
                         for c in clientes}
             sel = st.selectbox("Selecciona cliente", list(opciones.keys()))
-            cliente_id = opciones[sel]
+            st.session_state.cliente_id_nueva_visita = opciones[sel]
         else:
             st.info("No se encontraron clientes. Crea uno nuevo.")
     else:
@@ -395,21 +537,34 @@ elif pagina == "➕ Nueva Visita":
             r_zona   = r3.text_input("Zona")
             if st.form_submit_button("Crear y continuar", type="primary"):
                 if r_nombre.strip():
-                    cliente_id = db.add_cliente(r_nombre, r_tel, r_zona)
-                    st.success(f"Cliente '{r_nombre}' creado.")
+                    nuevo_id = db.add_cliente(r_nombre, r_tel, r_zona)
+                    st.session_state.cliente_id_nueva_visita = nuevo_id
+                    st.success(f"✅ Cliente '{r_nombre}' creado. Ahora rellena los datos de la visita.")
                 else:
                     st.error("El nombre es obligatorio.")
+
+    cliente_id = st.session_state.cliente_id_nueva_visita
+    if cliente_id:
+        cl = db.get_cliente(cliente_id)
+        if cl:
+            st.info(f"Cliente seleccionado: **{cl['nombre']}** · {cl.get('zona','-')} · {cl.get('telefono','-')}")
 
     st.markdown("---")
     st.subheader("2. Datos de la visita")
 
-    with st.form("form_visita", clear_on_submit=True):
-        v1, v2, v3 = st.columns(3)
-        fecha_v      = v1.date_input("Fecha *", value=date.today())
-        tipo_v       = v2.selectbox("Tipo de contacto", TIPO_CONTACTO_OPS)
-        oportunidad_v = v3.selectbox("Oportunidad", OPORTUNIDAD_OPS)
+    # Fecha y hora automática — se registra al abrir el formulario
+    from datetime import datetime as _dt
+    ahora = _dt.now()
+    st.info(f"🕐 Fecha y hora de la visita: **{ahora.strftime('%d/%m/%Y %H:%M')}**  _(se guarda automáticamente)_")
+    fecha_v = ahora.date()
 
-        temas_v       = st.multiselect("Temas tratados", TEMAS_OPS)
+    with st.form("form_visita", clear_on_submit=True):
+        v1, v2 = st.columns(2)
+        tipo_v        = v1.selectbox("Tipo de contacto", TIPO_CONTACTO_OPS)
+        oportunidad_v = v2.selectbox("Oportunidad", OPORTUNIDAD_OPS)
+
+        temas_v       = st.text_input("Temas tratados",
+                                       placeholder="Ej: Antifouling, Sadira, motor 300HP, oferta invierno...")
         comentarios_v = st.text_area("Comentarios *", height=160,
                                       placeholder="Describe qué se habló, estado del cliente, necesidades, actitud...")
 
@@ -430,15 +585,16 @@ elif pagina == "➕ Nueva Visita":
                 db.add_visita(
                     cliente_id=cliente_id,
                     comercial_id=comercial_sel["id"],
-                    fecha=fecha_v,
+                    fecha=ahora.strftime("%Y-%m-%d %H:%M"),
                     tipo_contacto=tipo_v,
                     comentarios=comentarios_v,
-                    temas=", ".join(temas_v),
+                    temas=temas_v,
                     seguimiento=seguimiento_v,
                     fecha_seguimiento=fecha_seg_v if seguimiento_v else None,
                     oportunidad=oportunidad_v,
                     importe_estimado=importe_v
                 )
+                st.session_state.cliente_id_nueva_visita = None
                 st.success("✅ Visita guardada correctamente.")
                 st.balloons()
 
@@ -476,23 +632,52 @@ elif pagina == "📋 Visitas":
     st.caption(f"{len(visitas)} visitas encontradas")
 
     if visitas:
-        df = pd.DataFrame(visitas)
-        cols = ["fecha", "cliente_nombre", "zona", "tipo_contacto",
-                "oportunidad", "temas", "comentarios", "seguimiento",
-                "fecha_seguimiento", "importe_estimado"]
-        df_show = df[cols].copy()
-        df_show.columns = ["Fecha", "Cliente", "Zona", "Tipo", "Oportunidad",
-                            "Temas", "Comentarios", "Seguimiento", "Seg. fecha", "Importe €"]
+        COLOR_OPO_BG = {"Alta": "#dcfce7", "Media": "#fef9c3", "Baja": "#dbeafe", "Ninguna": "#f8fafc"}
+        COLOR_OPO_BD = {"Alta": "#22c55e", "Media": "#f59e0b", "Baja": "#60a5fa", "Ninguna": "#cbd5e1"}
 
-        st.dataframe(
-            df_show,
-            use_container_width=True,
-            hide_index=True,
-            column_config={
-                "Comentarios": st.column_config.TextColumn(width="large"),
-                "Importe €":   st.column_config.NumberColumn(format="%.0f €"),
-            }
-        )
+        for v in visitas:
+            opo       = v.get("oportunidad", "Ninguna")
+            bg        = COLOR_OPO_BG.get(opo, "#f8fafc")
+            borde     = COLOR_OPO_BD.get(opo, "#cbd5e1")
+            temas_txt = v.get("temas") or ""
+            comentario = v.get("comentarios") or "—"
+            seg_txt   = v.get("seguimiento") or ""
+            fecha_seg = v.get("fecha_seguimiento") or ""
+
+            temas_parte = f'<span style="color:#888;font-size:0.85em">🏷️ {temas_txt}</span>' if temas_txt else ""
+            seg_parte = (
+                f'<div style="margin-top:8px;padding:6px 12px;background:#f0f4ff;'
+                f'border-radius:6px;border-left:3px solid #1a73e8;font-size:0.88em;color:#1a2b4a">'
+                f'🔔 <b>Seguimiento:</b> {seg_txt}'
+                f'{f" · <span style=\'color:#64748b\'>{fecha_seg}</span>" if fecha_seg else ""}'
+                f'</div>'
+            ) if seg_txt else ""
+
+            zona_txt = v.get("zona") or "-"
+            tipo_txt = v.get("tipo_contacto") or ""
+
+            st.markdown(
+                f'<div style="background:{bg};border-left:5px solid {borde};'
+                f'border-radius:10px;padding:16px 22px;margin-bottom:12px;'
+                f'box-shadow:0 1px 4px rgba(0,0,0,0.06)">'
+                f'<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">'
+                f'<div>'
+                f'<span style="font-size:1.05em;font-weight:700;color:#1a2b4a">{v["cliente_nombre"]}</span>'
+                f'<span style="margin-left:10px;color:#64748b;font-size:0.88em">'
+                f'📅 {v["fecha"]} &nbsp;·&nbsp; {tipo_txt} &nbsp;·&nbsp; 📍 {zona_txt}'
+                f'</span>'
+                f'</div>'
+                f'<span style="background:{borde};color:white;padding:2px 10px;'
+                f'border-radius:10px;font-size:0.8em;white-space:nowrap">{opo}</span>'
+                f'</div>'
+                f'{f"<div style=\'margin-bottom:6px\'>{temas_parte}</div>" if temas_parte else ""}'
+                f'<div style="font-size:0.97em;color:#1a2b4a;line-height:1.75;'
+                f'padding:10px 14px;background:white;border-radius:8px;border:1px solid #e2e8f0">'
+                f'{comentario}</div>'
+                f'{seg_parte}'
+                f'</div>',
+                unsafe_allow_html=True
+            )
 
         # Edición
         with st.expander("Editar / Eliminar visita"):
@@ -537,7 +722,9 @@ elif pagina == "📋 Visitas":
 elif pagina == "👥 Clientes":
     st.title("👥 Clientes")
 
-    tab_lista, tab_nuevo, tab_editar = st.tabs(["Lista de clientes", "Nuevo cliente", "Editar cliente"])
+    tab_lista, tab_ficha, tab_nuevo, tab_editar = st.tabs([
+        "Lista de clientes", "📋 Ficha de cliente", "Nuevo cliente", "Editar cliente"
+    ])
 
     with tab_lista:
         c_busq = st.text_input("Buscar")
@@ -551,19 +738,102 @@ elif pagina == "👥 Clientes":
             df_cl.columns = ["ID", "Nombre", "Teléfono", "Zona", "Alta"]
             st.dataframe(df_cl, use_container_width=True, hide_index=True)
             st.caption(f"{len(clientes)} clientes")
-
-            sel_hist = st.selectbox("Ver historial de visitas",
-                                     [c["id"] for c in clientes],
-                                     format_func=lambda i: next(c["nombre"] for c in clientes if c["id"] == i))
-            vis_cl = db.get_visitas(cliente_id=sel_hist)
-            if vis_cl:
-                df_vis = pd.DataFrame(vis_cl)[["fecha", "tipo_contacto", "oportunidad", "comentarios", "seguimiento"]]
-                df_vis.columns = ["Fecha", "Tipo", "Oportunidad", "Comentarios", "Seguimiento"]
-                st.dataframe(df_vis, use_container_width=True, hide_index=True)
-            else:
-                st.info("Sin visitas registradas para este cliente")
         else:
             st.info("No se encontraron clientes")
+
+    # ── Ficha visual de cliente ──
+    with tab_ficha:
+        cl_todos_f = db.get_clientes()
+        if not cl_todos_f:
+            st.info("No hay clientes registrados")
+        else:
+            sel_ficha = st.selectbox(
+                "Selecciona cliente",
+                [c["id"] for c in cl_todos_f],
+                format_func=lambda i: next(c["nombre"] for c in cl_todos_f if c["id"] == i),
+                key="sel_ficha"
+            )
+            cl_f = db.get_cliente(sel_ficha)
+            vis_f = db.get_visitas(cliente_id=sel_ficha)
+
+            if cl_f:
+                # Cabecera del cliente
+                st.markdown(f"""
+                <div style="background:white;border-radius:12px;padding:20px;
+                            border-left:5px solid #1a73e8;margin-bottom:16px;
+                            box-shadow:0 1px 4px rgba(0,0,0,0.08)">
+                    <h2 style="margin:0;color:#1a2b4a">{cl_f['nombre']}</h2>
+                    <span style="color:#64748b">📍 {cl_f.get('zona') or '-'} &nbsp;|&nbsp;
+                    📞 {cl_f.get('telefono') or '-'} &nbsp;|&nbsp;
+                    🗓️ Cliente desde {cl_f.get('fecha_alta','')}</span>
+                </div>
+                """, unsafe_allow_html=True)
+
+                if cl_f.get("notas"):
+                    st.info(f"📝 {cl_f['notas']}")
+
+                # KPIs rápidos
+                k1, k2, k3, k4 = st.columns(4)
+                k1.metric("Total visitas", len(vis_f))
+                opos_altas = len([v for v in vis_f if v["oportunidad"] == "Alta"])
+                k2.metric("Oportunidades altas", opos_altas)
+                importe_total = sum(v.get("importe_estimado") or 0 for v in vis_f)
+                k3.metric("Importe pipeline", f"{importe_total:,.0f} €")
+                ultima = vis_f[0]["fecha"] if vis_f else "Sin visitas"
+                k4.metric("Última visita", ultima)
+
+                st.markdown("---")
+                st.markdown("### 📅 Historial de visitas")
+
+                if vis_f:
+                    COLOR_OPO_BG = {
+                        "Alta": "#dcfce7", "Media": "#fef9c3",
+                        "Baja": "#dbeafe", "Ninguna": "#f8fafc"
+                    }
+                    COLOR_OPO_BD = {
+                        "Alta": "#22c55e", "Media": "#f59e0b",
+                        "Baja": "#60a5fa", "Ninguna": "#cbd5e1"
+                    }
+                    for v in vis_f:
+                        opo       = v.get("oportunidad", "Ninguna")
+                        bg        = COLOR_OPO_BG.get(opo, "#f8fafc")
+                        borde     = COLOR_OPO_BD.get(opo, "#cbd5e1")
+                        temas_txt = v.get("temas") or ""
+                        comentario = v.get("comentarios") or "—"
+                        fecha_seg  = v.get("fecha_seguimiento") or ""
+                        seg_txt    = v.get("seguimiento") or ""
+
+                        temas_parte = f'<span style="margin-left:12px;color:#888;font-size:0.85em">🏷️ {temas_txt}</span>' if temas_txt else ""
+                        fecha_seg_parte = f' · {fecha_seg}' if fecha_seg else ""
+                        seg_parte = (
+                            f'<div style="margin-top:10px;padding:8px 12px;background:#f0f4ff;'
+                            f'border-radius:6px;border-left:3px solid #1a73e8;font-size:0.9em;color:#1a2b4a">'
+                            f'🔔 <b>Seguimiento:</b> {seg_txt}'
+                            f'<span style="color:#64748b">{fecha_seg_parte}</span></div>'
+                        ) if seg_txt else ""
+
+                        html_visita = (
+                            f'<div style="background:{bg};border-left:5px solid {borde};'
+                            f'border-radius:10px;padding:18px 24px;margin-bottom:14px;'
+                            f'box-shadow:0 1px 4px rgba(0,0,0,0.06)">'
+                            f'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">'
+                            f'<div>'
+                            f'<span style="font-size:1.1em;font-weight:700;color:#1a2b4a">📅 {v["fecha"]}</span>'
+                            f'<span style="margin-left:12px;color:#64748b;font-size:0.9em">{v["tipo_contacto"]}</span>'
+                            f'{temas_parte}'
+                            f'</div>'
+                            f'<span style="background:{borde};color:white;padding:3px 12px;'
+                            f'border-radius:12px;font-size:0.82em">{opo}</span>'
+                            f'</div>'
+                            f'<div style="font-size:1em;color:#1a2b4a;line-height:1.8;'
+                            f'padding:10px 14px;background:white;border-radius:8px;border:1px solid #e2e8f0">'
+                            f'{comentario}</div>'
+                            f'{seg_parte}'
+                            f'</div>'
+                        )
+                        st.markdown(html_visita, unsafe_allow_html=True)
+                else:
+                    st.info("Este cliente aún no tiene visitas registradas.")
 
     with tab_nuevo:
         with st.form("nuevo_cl"):
@@ -599,6 +869,118 @@ elif pagina == "👥 Clientes":
                         st.rerun()
         else:
             st.info("No hay clientes")
+
+
+# ══════════════════════════════════════════════
+# PÁGINA: TAREAS
+# ══════════════════════════════════════════════
+elif pagina == "✅ Tareas":
+    st.title("✅ Tareas y Seguimientos")
+
+    es_control = st.session_state.rol == "control"
+
+    # En control ve todos; el comercial solo las suyas
+    com_id_filtro = None if es_control else comercial_sel["id"]
+
+    tab_pend, tab_hist = st.tabs(["📌 Pendientes", "✔️ Historial completadas"])
+
+    # ── PENDIENTES ──
+    with tab_pend:
+        pendientes = db.get_tareas_pendientes(comercial_id=com_id_filtro)
+
+        if not pendientes:
+            st.success("🎉 No hay tareas pendientes.")
+        else:
+            st.caption(f"{len(pendientes)} tareas pendientes")
+
+            for t in pendientes:
+                fecha_seg = t.get("fecha_seguimiento") or "Sin fecha"
+                # Alerta si vence hoy o ya pasó
+                from datetime import date as _date
+                vencida = False
+                if t.get("fecha_seguimiento"):
+                    try:
+                        vencida = t["fecha_seguimiento"] <= _date.today().isoformat()
+                    except Exception:
+                        pass
+
+                color_borde = "#ef4444" if vencida else "#f59e0b"
+                color_bg    = "#fef2f2" if vencida else "#fffbeb"
+                icono       = "🔴" if vencida else "🟡"
+
+                with st.container():
+                    comercial_parte = f" &nbsp;·&nbsp; 👤 {t['comercial_nombre']}" if es_control else ""
+                    comentario_prev = (t.get("comentarios") or "")[:80]
+                    puntos = "..." if len(t.get("comentarios") or "") > 80 else ""
+                    st.markdown(
+                        f'<div style="background:{color_bg};border-left:5px solid {color_borde};'
+                        f'border-radius:10px;padding:14px 20px;margin-bottom:6px">'
+                        f'<div style="display:flex;justify-content:space-between;align-items:center">'
+                        f'<div>'
+                        f'<span style="font-size:1.05em;font-weight:700;color:#1a2b4a">'
+                        f'{icono} {t["cliente_nombre"]}</span>'
+                        f'<span style="margin-left:10px;color:#64748b;font-size:0.88em">'
+                        f'📅 Vence: {fecha_seg}{comercial_parte}'
+                        f'</span>'
+                        f'</div>'
+                        f'</div>'
+                        f'<div style="margin-top:6px;font-size:0.95em;color:#1a2b4a">'
+                        f'<b>Tarea:</b> {t["seguimiento"]}'
+                        f'</div>'
+                        f'<div style="margin-top:4px;font-size:0.85em;color:#64748b">'
+                        f'Visita del {t["fecha"]} · {comentario_prev}{puntos}'
+                        f'</div>'
+                        f'</div>',
+                        unsafe_allow_html=True
+                    )
+
+                    # Formulario inline para completar
+                    with st.expander(f"✔️ Marcar como completada — {t['cliente_nombre']}"):
+                        with st.form(f"form_completar_{t['id']}"):
+                            resultado = st.text_area(
+                                "¿Qué se hizo? ¿Cuál fue el resultado?",
+                                placeholder="Ej: Se envió presupuesto de antifouling. Cliente lo aceptó.\n"
+                                            "Ej: Llamada realizada. Pendiente de respuesta.\n"
+                                            "Ej: Presupuesto rechazado, precio demasiado alto.",
+                                height=80
+                            )
+                            if st.form_submit_button("✅ Completar tarea", type="primary"):
+                                db.completar_tarea(t["id"], resultado)
+                                st.success("Tarea marcada como completada.")
+                                st.rerun()
+                    st.markdown("")
+
+    # ── HISTORIAL ──
+    with tab_hist:
+        completadas = db.get_tareas_completadas(comercial_id=com_id_filtro)
+
+        if not completadas:
+            st.info("No hay tareas completadas aún.")
+        else:
+            st.caption(f"{len(completadas)} tareas completadas")
+            for t in completadas:
+                resultado = t.get("tarea_resultado") or "Sin detalle"
+                cierre    = t.get("tarea_fecha_cierre") or ""
+
+                com_hist = f" &nbsp;·&nbsp; {t['comercial_nombre']}" if es_control else ""
+                st.markdown(
+                    f'<div style="background:#f0fdf4;border-left:5px solid #22c55e;'
+                    f'border-radius:10px;padding:14px 20px;margin-bottom:10px">'
+                    f'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">'
+                    f'<span style="font-weight:700;color:#1a2b4a">✔️ {t["cliente_nombre"]}</span>'
+                    f'<span style="font-size:0.82em;color:#64748b">Cerrada: {cierre}{com_hist}</span>'
+                    f'</div>'
+                    f'<div style="font-size:0.9em;color:#374151"><b>Tarea:</b> {t["seguimiento"]}</div>'
+                    f'<div style="margin-top:6px;padding:8px 12px;background:white;border-radius:6px;'
+                    f'border:1px solid #bbf7d0;font-size:0.9em;color:#166534">'
+                    f'📝 {resultado}</div>'
+                    f'</div>',
+                    unsafe_allow_html=True
+                )
+                # Botón para reabrir si fue un error
+                if st.button(f"↩️ Reabrir tarea", key=f"reabrir_{t['id']}"):
+                    db.reabrir_tarea(t["id"])
+                    st.rerun()
 
 
 # ══════════════════════════════════════════════
@@ -695,3 +1077,89 @@ elif pagina == "📈 Informes IA":
                     st.markdown(resp)
                 except Exception as e:
                     st.error(str(e))
+
+
+# ══════════════════════════════════════════════
+# PÁGINA: CONFIGURACIÓN
+# ══════════════════════════════════════════════
+elif pagina == "⚙️ Configuración":
+    st.title("⚙️ Configuración")
+
+    tab_temas, tab_backup = st.tabs(["🏷️ Temas de visita", "💾 Copia de seguridad"])
+
+    # ── Temas configurables ──
+    with tab_temas:
+        st.subheader("Temas tratados en las visitas")
+        st.caption("Añade, elimina o personaliza los temas que aparecen al registrar una visita: marcas, segmentos, productos, etc.")
+
+        temas_actuales = db.get_temas()
+
+        # Mostrar temas actuales con botón de eliminar
+        st.markdown("**Temas actuales:**")
+        for tema in temas_actuales:
+            col_t, col_del = st.columns([5, 1])
+            col_t.markdown(f"🏷️ {tema}")
+            if col_del.button("🗑️", key=f"del_tema_{tema}", help=f"Eliminar '{tema}'"):
+                db.delete_tema(tema)
+                st.rerun()
+
+        st.markdown("---")
+        st.markdown("**Añadir nuevo tema:**")
+        with st.form("form_nuevo_tema"):
+            nuevo_tema = st.text_input("Nombre del tema", placeholder="Ej: Marca Volvo, Segmento Recreo, Winterización...")
+            if st.form_submit_button("➕ Añadir tema", type="primary"):
+                if nuevo_tema.strip():
+                    try:
+                        db.add_tema(nuevo_tema)
+                        st.success(f"Tema '{nuevo_tema}' añadido")
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"Error: {e} (puede que ya exista)")
+                else:
+                    st.warning("Escribe un nombre para el tema")
+
+    # ── Copia de seguridad ──
+    with tab_backup:
+        st.subheader("Copia de seguridad de datos")
+        st.info(
+            "Los datos están guardados en Supabase (nube). Puedes descargar una copia "
+            "en Excel en cualquier momento desde aquí."
+        )
+
+        col_b1, col_b2 = st.columns(2)
+
+        with col_b1:
+            st.markdown("**Exportar visitas**")
+            if st.button("📥 Descargar visitas (Excel)", use_container_width=True):
+                df_exp = db.exportar_visitas_csv()
+                if not df_exp.empty:
+                    import io
+                    buffer = io.BytesIO()
+                    with pd.ExcelWriter(buffer, engine="openpyxl") as writer:
+                        df_exp.to_excel(writer, index=False, sheet_name="Visitas")
+                    st.download_button(
+                        label="⬇️ Haz clic aquí para guardar el archivo",
+                        data=buffer.getvalue(),
+                        file_name=f"visitas_sun_{date.today().isoformat()}.xlsx",
+                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                    )
+                else:
+                    st.warning("No hay visitas para exportar")
+
+        with col_b2:
+            st.markdown("**Exportar clientes**")
+            if st.button("📥 Descargar clientes (Excel)", use_container_width=True):
+                df_cl_exp = db.exportar_clientes_csv()
+                if not df_cl_exp.empty:
+                    import io
+                    buffer2 = io.BytesIO()
+                    with pd.ExcelWriter(buffer2, engine="openpyxl") as writer:
+                        df_cl_exp.to_excel(writer, index=False, sheet_name="Clientes")
+                    st.download_button(
+                        label="⬇️ Haz clic aquí para guardar el archivo",
+                        data=buffer2.getvalue(),
+                        file_name=f"clientes_sun_{date.today().isoformat()}.xlsx",
+                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                    )
+                else:
+                    st.warning("No hay clientes para exportar")
