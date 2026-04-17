@@ -508,6 +508,46 @@ if pagina == "📊 Dashboard":
                         })
                 st.rerun()
 
+    # ── Copia de seguridad ──
+    if st.session_state.rol == "control":
+        st.markdown("---")
+        st.markdown('<div class="section-title">💾 Copia de seguridad</div>', unsafe_allow_html=True)
+        col_bk1, col_bk2 = st.columns(2)
+        with col_bk1:
+            if st.button("⬇️ Descargar visitas (Excel)", use_container_width=True):
+                df_bk = db.exportar_visitas_csv()
+                if not df_bk.empty:
+                    import io
+                    buf = io.BytesIO()
+                    with pd.ExcelWriter(buf, engine="openpyxl") as w:
+                        df_bk.to_excel(w, index=False, sheet_name="Visitas")
+                    st.download_button(
+                        "⬇️ Guardar archivo",
+                        data=buf.getvalue(),
+                        file_name=f"visitas_sun_{date.today().isoformat()}.xlsx",
+                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                        key="dl_visitas_dash"
+                    )
+                else:
+                    st.info("No hay visitas aún.")
+        with col_bk2:
+            if st.button("⬇️ Descargar clientes (Excel)", use_container_width=True):
+                df_cl_bk = db.exportar_clientes_csv()
+                if not df_cl_bk.empty:
+                    import io
+                    buf2 = io.BytesIO()
+                    with pd.ExcelWriter(buf2, engine="openpyxl") as w:
+                        df_cl_bk.to_excel(w, index=False, sheet_name="Clientes")
+                    st.download_button(
+                        "⬇️ Guardar archivo",
+                        data=buf2.getvalue(),
+                        file_name=f"clientes_sun_{date.today().isoformat()}.xlsx",
+                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                        key="dl_clientes_dash"
+                    )
+                else:
+                    st.info("No hay clientes aún.")
+
 
 # ══════════════════════════════════════════════
 # PÁGINA: NUEVA VISITA
