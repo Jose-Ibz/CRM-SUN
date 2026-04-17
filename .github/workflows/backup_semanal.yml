@@ -1,0 +1,30 @@
+name: Backup Semanal CRM
+
+on:
+  schedule:
+    - cron: '0 7 * * 1'  # Cada lunes a las 7:00 AM (hora UTC = 8:00 España)
+  workflow_dispatch:       # También se puede lanzar manualmente desde GitHub
+
+jobs:
+  enviar_backup:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Descargar código
+        uses: actions/checkout@v4
+
+      - name: Instalar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Instalar dependencias
+        run: pip install psycopg2-binary pandas openpyxl
+
+      - name: Generar y enviar backup
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          GMAIL_USER: ${{ secrets.GMAIL_USER }}
+          GMAIL_PASSWORD: ${{ secrets.GMAIL_PASSWORD }}
+          EMAIL_DESTINO: ${{ secrets.EMAIL_DESTINO }}
+        run: python enviar_backup.py
