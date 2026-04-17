@@ -202,19 +202,18 @@ if MODO_VISITA:
             st.session_state.cliente_id_nueva_visita = opciones_v[sel_v]
             cliente_id_v = opciones_v[sel_v]
     else:
-        with st.form("form_cl_rapido_v"):
-            nv1, nv2, nv3 = st.columns(3)
-            n_nom_v  = nv1.text_input("Nombre *")
-            n_tel_v  = nv2.text_input("Teléfono")
-            n_zona_v = nv3.text_input("Zona")
-            if st.form_submit_button("Crear cliente", type="primary"):
-                if n_nom_v.strip():
-                    nid_v = db.add_cliente(n_nom_v, n_tel_v, n_zona_v)
-                    st.session_state.cliente_id_nueva_visita = nid_v
-                    st.success(f"✅ {n_nom_v} creado")
-                    st.rerun()
-                else:
-                    st.error("El nombre es obligatorio")
+        nv1, nv2, nv3 = st.columns(3)
+        n_nom_v  = nv1.text_input("Nombre *", key="n_nom_v")
+        n_tel_v  = nv2.text_input("Teléfono", key="n_tel_v")
+        n_zona_v = nv3.text_input("Zona", key="n_zona_v")
+        if st.button("Crear cliente", type="primary", key="btn_crear_cl_v"):
+            if n_nom_v.strip():
+                nid_v = db.add_cliente(n_nom_v, n_tel_v, n_zona_v)
+                st.session_state.cliente_id_nueva_visita = nid_v
+                st.success(f"✅ {n_nom_v} creado")
+                st.rerun()
+            else:
+                st.error("El nombre es obligatorio")
 
     cliente_id_v = st.session_state.get("cliente_id_nueva_visita")
     if cliente_id_v:
@@ -233,10 +232,13 @@ if MODO_VISITA:
     ahora_v = _dt_v.now()
     st.info(f"🕐 **{ahora_v.strftime('%d/%m/%Y %H:%M')}**")
 
+    _TIPO_OPS = ["Presencial", "Telefónico", "Email", "Videollamada", "Feria/Evento"]
+    _OPO_OPS  = ["Ninguna", "Baja", "Media", "Alta"]
+
     with st.form("form_visita_rapida", clear_on_submit=True):
         vr1, vr2 = st.columns(2)
-        tipo_vr  = vr1.selectbox("Tipo", TIPO_CONTACTO_OPS, key="tipo_vr")
-        opo_vr   = vr2.selectbox("Oportunidad", OPORTUNIDAD_OPS, key="opo_vr")
+        tipo_vr  = vr1.selectbox("Tipo", _TIPO_OPS, key="tipo_vr")
+        opo_vr   = vr2.selectbox("Oportunidad", _OPO_OPS, key="opo_vr")
         temas_vr = st.text_input("Temas", placeholder="Antifouling, Sadira, motor...", key="temas_vr")
         com_vr   = st.text_area("Comentarios *", height=140,
                                  placeholder="Qué se habló, estado del cliente, necesidades...",
