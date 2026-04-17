@@ -134,8 +134,139 @@ def pantalla_login():
             else:
                 st.error("Contraseña incorrecta")
 
+# Detectar modo visita rápida por URL (?modo=visita)
+MODO_VISITA = st.query_params.get("modo", "") == "visita"
+
 if st.session_state.rol is None:
-    pantalla_login()
+    # En modo visita el login es más simple
+    if MODO_VISITA:
+        col = st.columns([1, 2, 1])[1]
+        with col:
+            try:
+                st.image("logo.png", width=160)
+            except Exception:
+                st.markdown("## ☀️ Sun Ibiza")
+            st.markdown("### ➕ Registrar Visita")
+            clave_v = st.text_input("Contraseña", type="password", key="pwd_visita")
+            if st.button("Entrar", type="primary", use_container_width=True):
+                try:
+                    pwd_control   = st.secrets["PWD_CONTROL"]
+                    pwd_comercial = st.secrets["PWD_COMERCIAL"]
+                except Exception:
+                    pwd_control   = ["0077", "1919"]
+                    pwd_comercial = "1234"
+                if clave_v in pwd_control or clave_v == pwd_comercial:
+                    st.session_state.rol = "comercial" if clave_v == pwd_comercial else "control"
+                    st.rerun()
+                else:
+                    st.error("Contraseña incorrecta")
+        st.stop()
+    else:
+        pantalla_login()
+        st.stop()
+
+# ── MODO VISITA RÁPIDA ──────────────────────────
+if MODO_VISITA:
+    # Pantalla completa optimizada para móvil
+    st.markdown("""
+    <style>
+        section[data-testid="stSidebar"] { display: none; }
+        .block-container { padding: 1rem 1rem; max-width: 600px; margin: auto; }
+        div[data-testid="stForm"] { background: white; border-radius: 12px; padding: 20px; }
+    </style>
+    """, unsafe_allow_html=True)
+
+    try:
+        st.image("logo.png", width=130)
+    except Exception:
+        pass
+    st.markdown("## ➕ Nueva Visita")
+
+    try:
+        comerciales_v = db.get_comerciales()
+    except Exception as e:
+        st.error(f"Error de conexión: {e}")
+        st.stop()
+
+    # Selector de cliente
+    modo_v = st.radio("", ["Buscar cliente", "Cliente nuevo"], horizontal=True, key="modo_v")
+
+    cliente_id_v = st.session_state.get("cliente_id_nueva_visita")
+
+    if modo_v == "Buscar cliente":
+        busq_v = st.text_input("Nombre o teléfono", key="busq_v")
+        clientes_v = db.get_clientes(busqueda=busq_v if busq_v else None)
+        if clientes_v:
+            opciones_v = {f"{c['nombre']} · {c.get('zona','-')}": c["id"] for c in clientes_v}
+            sel_v = st.selectbox("Cliente", list(opciones_v.keys()), key="sel_cl_v")
+            st.session_state.cliente_id_nueva_visita = opciones_v[sel_v]
+            cliente_id_v = opciones_v[sel_v]
+    else:
+        with st.form("form_cl_rapido_v"):
+            nv1, nv2, nv3 = st.columns(3)
+            n_nom_v  = nv1.text_input("Nombre *")
+            n_tel_v  = nv2.text_input("Teléfono")
+            n_zona_v = nv3.text_input("Zona")
+            if st.form_submit_button("Crear cliente", type="primary"):
+                if n_nom_v.strip():
+                    nid_v = db.add_cliente(n_nom_v, n_tel_v, n_zona_v)
+                    st.session_state.cliente_id_nueva_visita = nid_v
+                    st.success(f"✅ {n_nom_v} creado")
+                    st.rerun()
+                else:
+                    st.error("El nombre es obligatorio")
+
+    cliente_id_v = st.session_state.get("cliente_id_nueva_visita")
+    if cliente_id_v:
+        cl_v = db.get_cliente(cliente_id_v)
+        if cl_v:
+            st.info(f"✅ **{cl_v['nombre']}** · {cl_v.get('zona','-')}")
+
+    st.markdown("---")
+
+    # Comercial
+    nombres_com_v = [c["nombre"] for c in comerciales_v]
+    comercial_v = st.selectbox("Comercial", nombres_com_v, key="com_v")
+    comercial_obj_v = next(c for c in comerciales_v if c["nombre"] == comercial_v)
+
+    from datetime import datetime as _dt_v
+    ahora_v = _dt_v.now()
+    st.info(f"🕐 **{ahora_v.strftime('%d/%m/%Y %H:%M')}**")
+
+    with st.form("form_visita_rapida", clear_on_submit=True):
+        vr1, vr2 = st.columns(2)
+        tipo_vr  = vr1.selectbox("Tipo", TIPO_CONTACTO_OPS, key="tipo_vr")
+        opo_vr   = vr2.selectbox("Oportunidad", OPORTUNIDAD_OPS, key="opo_vr")
+        temas_vr = st.text_input("Temas", placeholder="Antifouling, Sadira, motor...", key="temas_vr")
+        com_vr   = st.text_area("Comentarios *", height=140,
+                                 placeholder="Qué se habló, estado del cliente, necesidades...",
+                                 key="com_vr")
+        st.markdown("**Seguimiento**")
+        sr1, sr2 = st.columns(2)
+        seg_vr   = sr1.text_input("Acción pendiente", key="seg_vr")
+        fseg_vr  = sr2.date_input("Fecha", value=date.today() + timedelta(days=7), key="fseg_vr")
+
+        if st.form_submit_button("💾 GUARDAR VISITA", type="primary", use_container_width=True):
+            if not cliente_id_v:
+                st.error("Selecciona o crea un cliente primero.")
+            elif not com_vr.strip():
+                st.error("Los comentarios son obligatorios.")
+            else:
+                db.add_visita(
+                    cliente_id=cliente_id_v,
+                    comercial_id=comercial_obj_v["id"],
+                    fecha=ahora_v.strftime("%Y-%m-%d %H:%M"),
+                    tipo_contacto=tipo_vr,
+                    comentarios=com_vr,
+                    temas=temas_vr,
+                    seguimiento=seg_vr,
+                    fecha_seguimiento=fseg_vr if seg_vr else None,
+                    oportunidad=opo_vr,
+                    importe_estimado=0
+                )
+                st.session_state.cliente_id_nueva_visita = None
+                st.success("✅ ¡Visita guardada!")
+                st.balloons()
     st.stop()
 
 
