@@ -56,10 +56,23 @@ st.markdown("""
         background: linear-gradient(175deg, #0c1e35 0%, #162d4a 60%, #1a3a5c 100%) !important;
         border-right: none !important;
     }
+
+    /* Logo sidebar: fondo blanco para que destaque sobre el azul marino */
+    section[data-testid="stSidebar"] img {
+        background: white !important;
+        padding: 8px 12px !important;
+        border-radius: 10px !important;
+        margin-bottom: 6px !important;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.25) !important;
+        display: block !important;
+    }
+
+    /* Texto general sidebar */
     section[data-testid="stSidebar"] p,
     section[data-testid="stSidebar"] label,
-    section[data-testid="stSidebar"] span:not([data-testid]),
-    section[data-testid="stSidebar"] small {
+    section[data-testid="stSidebar"] small,
+    section[data-testid="stSidebar"] .stCaption,
+    section[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] p {
         color: #cbd5e1 !important;
     }
     section[data-testid="stSidebar"] h1,
@@ -67,24 +80,39 @@ st.markdown("""
     section[data-testid="stSidebar"] h3 {
         color: #f1f5f9 !important;
     }
-    /* Radio de navegación en sidebar */
+
+    /* ── Radio de navegación: selectors robustos para Streamlit 1.35+ ── */
     section[data-testid="stSidebar"] .stRadio > div {
         gap: 4px !important;
     }
+    /* El label envuelve cada opción */
     section[data-testid="stSidebar"] .stRadio label {
         background: rgba(255,255,255,0.04) !important;
         border-radius: 8px !important;
-        padding: 9px 14px !important;
+        padding: 8px 12px !important;
         transition: background 0.15s ease !important;
-        color: #94a3b8 !important;
-        font-weight: 500 !important;
-        font-size: 0.92em !important;
         cursor: pointer !important;
+        display: block !important;
     }
     section[data-testid="stSidebar"] .stRadio label:hover {
-        background: rgba(255,255,255,0.1) !important;
-        color: #f1f5f9 !important;
+        background: rgba(255,255,255,0.12) !important;
     }
+    /* Texto dentro del label (estructura Streamlit: label > div > div > p) */
+    section[data-testid="stSidebar"] .stRadio label p,
+    section[data-testid="stSidebar"] .stRadio label span,
+    section[data-testid="stSidebar"] .stRadio label div {
+        color: #e2e8f0 !important;
+        font-weight: 500 !important;
+        font-size: 0.93em !important;
+    }
+    /* Opción seleccionada: destacar */
+    section[data-testid="stSidebar"] .stRadio [aria-checked="true"] ~ div p,
+    section[data-testid="stSidebar"] .stRadio input:checked + div p,
+    section[data-testid="stSidebar"] .stRadio input:checked ~ div p {
+        color: #ffffff !important;
+        font-weight: 600 !important;
+    }
+
     /* Input en sidebar */
     section[data-testid="stSidebar"] .stTextInput input,
     section[data-testid="stSidebar"] .stSelectbox > div > div {
@@ -95,7 +123,7 @@ st.markdown("""
     }
     /* Separadores sidebar */
     section[data-testid="stSidebar"] hr {
-        border-color: rgba(255,255,255,0.1) !important;
+        border-color: rgba(255,255,255,0.12) !important;
     }
     /* Botón cerrar sesión en sidebar */
     section[data-testid="stSidebar"] .stButton > button {
@@ -443,36 +471,26 @@ def _verificar_clave(clave: str) -> str | None:
 
 
 def pantalla_login():
-    # Fondo de pantalla completa para login
-    st.markdown("""
-    <style>
-        .main { background: linear-gradient(135deg, #0c1e35 0%, #1a3a5c 50%, #0f2444 100%) !important; }
-        .block-container { display: flex; align-items: center; justify-content: center;
-                           min-height: 90vh; padding: 2rem !important; }
-    </style>
-    """, unsafe_allow_html=True)
-
-    col_center = st.columns([1, 1.6, 1])[1]
-    with col_center:
-        st.markdown("""
-        <div style="background:white;border-radius:20px;padding:40px 44px 36px;
-                    box-shadow:0 20px 60px rgba(0,0,0,0.25);text-align:center;">
-        """, unsafe_allow_html=True)
-
+    # CSS de login se inyecta ANTES de llamar a esta función (sin style dentro)
+    _, col, _ = st.columns([1, 1.4, 1])
+    with col:
+        # Logo o título
         try:
-            st.image("logo.png", width=180)
+            _, lc, _ = st.columns([2, 6, 2])
+            lc.image("logo.png", use_container_width=True)
         except Exception:
             st.markdown("""
-            <div style="font-size:2.5em;margin-bottom:4px">⚓</div>
-            <div style="font-size:1.4em;font-weight:800;color:#0f2444;letter-spacing:-0.5px">
-                Viamar CRM
+            <div style="text-align:center;padding:16px 0 4px">
+                <span style="font-size:2.8em">⚓</span><br>
+                <span style="font-size:1.5em;font-weight:800;color:white;
+                             letter-spacing:-0.4px">Viamar CRM</span>
             </div>
             """, unsafe_allow_html=True)
 
         st.markdown("""
-        <div style="color:#64748b;font-size:0.9em;margin:8px 0 24px;font-weight:500">
+        <div style="text-align:center;color:#94a3b8;font-size:0.88em;
+                    margin:6px 0 20px;font-weight:500">
             CRM de Visitas Comerciales · Sun Ibiza
-        </div>
         </div>
         """, unsafe_allow_html=True)
 
@@ -482,7 +500,6 @@ def pantalla_login():
         clave = st.text_input("Contraseña", type="password",
                               placeholder="Introduce tu contraseña",
                               label_visibility="collapsed")
-        st.markdown("<div style='height:6px'></div>", unsafe_allow_html=True)
         if st.button("Entrar →", type="primary", use_container_width=True):
             rol = _verificar_clave(clave)
             if rol:
@@ -493,7 +510,7 @@ def pantalla_login():
                 _registrar_intento_fallido()
 
         st.markdown("""
-        <div style="text-align:center;margin-top:18px;color:#94a3b8;font-size:0.78em">
+        <div style="text-align:center;margin-top:14px;color:#475569;font-size:0.76em">
             ☀️ Sun Ibiza · Náutica Viamar
         </div>
         """, unsafe_allow_html=True)
@@ -502,6 +519,13 @@ def pantalla_login():
 MODO_VISITA = st.query_params.get("modo", "") == "visita"
 
 if st.session_state.rol is None:
+    # Fondo oscuro para la pantalla de login (inyectado aquí, fuera de la función)
+    st.markdown("""
+    <style>
+        .main { background: linear-gradient(135deg, #0c1e35 0%, #1a3a5c 100%) !important; }
+    </style>
+    """, unsafe_allow_html=True)
+
     # En modo visita el login es más simple
     if MODO_VISITA:
         col = st.columns([1, 2, 1])[1]
