@@ -34,58 +34,334 @@ init_db()
 # ─────────────────────────────────────────────
 st.markdown("""
 <style>
-    /* Fondo general */
-    .main { background-color: #f7f9fc; }
+    /* ── Google Font: Inter ── */
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
 
-    /* KPI cards */
-    [data-testid="metric-container"] {
-        background: white;
-        border: 1px solid #e2e8f0;
-        border-radius: 12px;
-        padding: 16px;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    /* ── Base ── */
+    html, body, [class*="css"], .stMarkdown, .stTextInput, .stSelectbox,
+    .stTextArea, .stButton, .stRadio, .stCheckbox, .stExpander,
+    [data-testid="stSidebar"] {
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
     }
 
-    /* Chat IA */
+    /* ── Fondo principal ── */
+    .main { background: #f1f5f9 !important; }
+    .block-container {
+        padding: 1.8rem 2.4rem 3rem !important;
+        max-width: 1400px !important;
+    }
+
+    /* ── Sidebar oscuro ── */
+    section[data-testid="stSidebar"] {
+        background: linear-gradient(175deg, #0c1e35 0%, #162d4a 60%, #1a3a5c 100%) !important;
+        border-right: none !important;
+    }
+    section[data-testid="stSidebar"] p,
+    section[data-testid="stSidebar"] label,
+    section[data-testid="stSidebar"] span:not([data-testid]),
+    section[data-testid="stSidebar"] small {
+        color: #cbd5e1 !important;
+    }
+    section[data-testid="stSidebar"] h1,
+    section[data-testid="stSidebar"] h2,
+    section[data-testid="stSidebar"] h3 {
+        color: #f1f5f9 !important;
+    }
+    /* Radio de navegación en sidebar */
+    section[data-testid="stSidebar"] .stRadio > div {
+        gap: 4px !important;
+    }
+    section[data-testid="stSidebar"] .stRadio label {
+        background: rgba(255,255,255,0.04) !important;
+        border-radius: 8px !important;
+        padding: 9px 14px !important;
+        transition: background 0.15s ease !important;
+        color: #94a3b8 !important;
+        font-weight: 500 !important;
+        font-size: 0.92em !important;
+        cursor: pointer !important;
+    }
+    section[data-testid="stSidebar"] .stRadio label:hover {
+        background: rgba(255,255,255,0.1) !important;
+        color: #f1f5f9 !important;
+    }
+    /* Input en sidebar */
+    section[data-testid="stSidebar"] .stTextInput input,
+    section[data-testid="stSidebar"] .stSelectbox > div > div {
+        background: rgba(255,255,255,0.06) !important;
+        border: 1px solid rgba(255,255,255,0.15) !important;
+        color: #e2e8f0 !important;
+        border-radius: 8px !important;
+    }
+    /* Separadores sidebar */
+    section[data-testid="stSidebar"] hr {
+        border-color: rgba(255,255,255,0.1) !important;
+    }
+    /* Botón cerrar sesión en sidebar */
+    section[data-testid="stSidebar"] .stButton > button {
+        background: rgba(255,255,255,0.08) !important;
+        color: #cbd5e1 !important;
+        border: 1px solid rgba(255,255,255,0.15) !important;
+        border-radius: 10px !important;
+        font-weight: 500 !important;
+        transition: all 0.2s !important;
+    }
+    section[data-testid="stSidebar"] .stButton > button:hover {
+        background: rgba(255,255,255,0.15) !important;
+        color: #f1f5f9 !important;
+        border-color: rgba(255,255,255,0.3) !important;
+    }
+
+    /* ── KPI Cards ── */
+    [data-testid="metric-container"] {
+        background: white !important;
+        border: none !important;
+        border-radius: 16px !important;
+        padding: 20px 22px !important;
+        box-shadow: 0 1px 4px rgba(0,0,0,0.05), 0 4px 20px rgba(0,0,0,0.04) !important;
+        border-top: 3px solid #3b82f6 !important;
+        transition: transform 0.18s ease, box-shadow 0.18s ease !important;
+    }
+    [data-testid="metric-container"]:hover {
+        transform: translateY(-2px) !important;
+        box-shadow: 0 6px 20px rgba(0,0,0,0.1) !important;
+    }
+    [data-testid="stMetricLabel"] > div {
+        font-size: 0.73em !important;
+        font-weight: 600 !important;
+        text-transform: uppercase !important;
+        letter-spacing: 0.6px !important;
+        color: #64748b !important;
+    }
+    [data-testid="stMetricValue"] > div {
+        font-size: 1.75em !important;
+        font-weight: 700 !important;
+        color: #0f2444 !important;
+        line-height: 1.2 !important;
+    }
+
+    /* ── Botones ── */
+    .stButton > button[kind="primary"],
+    .stFormSubmitButton > button[kind="primary"] {
+        background: linear-gradient(135deg, #1a3a5c 0%, #2563eb 100%) !important;
+        border: none !important;
+        border-radius: 10px !important;
+        font-weight: 600 !important;
+        letter-spacing: 0.2px !important;
+        padding: 10px 22px !important;
+        box-shadow: 0 2px 10px rgba(37,99,235,0.22) !important;
+        transition: all 0.18s ease !important;
+        color: white !important;
+    }
+    .stButton > button[kind="primary"]:hover,
+    .stFormSubmitButton > button[kind="primary"]:hover {
+        transform: translateY(-1px) !important;
+        box-shadow: 0 6px 18px rgba(37,99,235,0.35) !important;
+    }
+    .stButton > button:not([kind="primary"]),
+    .stFormSubmitButton > button:not([kind="primary"]) {
+        border-radius: 10px !important;
+        border: 1.5px solid #e2e8f0 !important;
+        background: white !important;
+        color: #374151 !important;
+        font-weight: 500 !important;
+        transition: all 0.18s ease !important;
+    }
+    .stButton > button:not([kind="primary"]):hover {
+        background: #f8fafc !important;
+        border-color: #3b82f6 !important;
+        color: #1a3a5c !important;
+    }
+
+    /* ── Inputs ── */
+    .stTextInput > div > div > input,
+    .stNumberInput > div > div > input {
+        border-radius: 10px !important;
+        border: 1.5px solid #e2e8f0 !important;
+        font-size: 0.94em !important;
+        transition: border-color 0.15s ease, box-shadow 0.15s ease !important;
+        background: white !important;
+    }
+    .stTextInput > div > div > input:focus,
+    .stNumberInput > div > div > input:focus {
+        border-color: #3b82f6 !important;
+        box-shadow: 0 0 0 3px rgba(59,130,246,0.12) !important;
+    }
+    .stTextArea > div > div > textarea {
+        border-radius: 10px !important;
+        border: 1.5px solid #e2e8f0 !important;
+        font-size: 0.94em !important;
+        transition: border-color 0.15s ease !important;
+    }
+    .stTextArea > div > div > textarea:focus {
+        border-color: #3b82f6 !important;
+        box-shadow: 0 0 0 3px rgba(59,130,246,0.12) !important;
+    }
+    .stSelectbox > div > div > div {
+        border-radius: 10px !important;
+        border: 1.5px solid #e2e8f0 !important;
+        font-size: 0.94em !important;
+        background: white !important;
+    }
+
+    /* ── Tabs ── */
+    .stTabs [data-baseweb="tab-list"] {
+        background: white !important;
+        border-radius: 12px !important;
+        padding: 5px !important;
+        border: 1.5px solid #e2e8f0 !important;
+        gap: 3px !important;
+    }
+    .stTabs [data-baseweb="tab"] {
+        border-radius: 8px !important;
+        font-weight: 500 !important;
+        color: #64748b !important;
+        font-size: 0.9em !important;
+        padding: 8px 14px !important;
+        transition: all 0.15s !important;
+    }
+    .stTabs [aria-selected="true"] {
+        background: linear-gradient(135deg, #1a3a5c 0%, #2563eb 100%) !important;
+        color: white !important;
+        font-weight: 600 !important;
+    }
+
+    /* ── Expanders ── */
+    .streamlit-expanderHeader {
+        background: white !important;
+        border-radius: 12px !important;
+        border: 1.5px solid #e2e8f0 !important;
+        font-weight: 600 !important;
+        color: #1a2b4a !important;
+        padding: 12px 16px !important;
+    }
+    .streamlit-expanderContent {
+        background: white !important;
+        border: 1.5px solid #e2e8f0 !important;
+        border-top: none !important;
+        border-radius: 0 0 12px 12px !important;
+    }
+
+    /* ── Dataframe ── */
+    .stDataFrame {
+        border-radius: 12px !important;
+        overflow: hidden !important;
+        border: 1px solid #e2e8f0 !important;
+        box-shadow: 0 1px 4px rgba(0,0,0,0.04) !important;
+    }
+
+    /* ── Chat IA ── */
     .chat-user {
-        background: #1a73e8;
+        background: linear-gradient(135deg, #1a3a5c 0%, #2563eb 100%);
         color: white;
         border-radius: 18px 18px 4px 18px;
-        padding: 10px 16px;
-        margin: 6px 0 6px 20%;
-        font-size: 0.95em;
+        padding: 12px 18px;
+        margin: 8px 0 8px 22%;
+        font-size: 0.93em;
+        line-height: 1.65;
+        box-shadow: 0 2px 10px rgba(37,99,235,0.2);
     }
     .chat-bot {
         background: white;
-        border: 1px solid #e2e8f0;
+        border: 1.5px solid #e2e8f0;
         border-radius: 18px 18px 18px 4px;
-        padding: 10px 16px;
-        margin: 6px 20% 6px 0;
-        font-size: 0.95em;
-        line-height: 1.6;
+        padding: 12px 18px;
+        margin: 8px 22% 8px 0;
+        font-size: 0.93em;
+        line-height: 1.65;
+        box-shadow: 0 1px 6px rgba(0,0,0,0.05);
+        color: #1a2b4a;
     }
     .chat-wrapper {
         max-height: 420px;
         overflow-y: auto;
-        padding: 8px;
-        background: #f7f9fc;
-        border-radius: 12px;
+        padding: 12px 14px;
+        background: #f8fafc;
+        border-radius: 14px;
         margin-bottom: 12px;
+        border: 1.5px solid #e2e8f0;
     }
+
+    /* ── Alertas ── */
     .alerta {
-        background: #fff3cd;
+        background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
         border-left: 4px solid #f59e0b;
-        border-radius: 6px;
-        padding: 10px 14px;
-        margin-bottom: 8px;
+        border-radius: 10px;
+        padding: 12px 16px;
+        margin-bottom: 10px;
         font-size: 0.9em;
+        box-shadow: 0 1px 4px rgba(245,158,11,0.08);
     }
-    h1 { color: #1a2b4a; }
+
+    /* ── Títulos ── */
+    h1 {
+        color: #0f2444 !important;
+        font-weight: 700 !important;
+        letter-spacing: -0.4px !important;
+        margin-bottom: 0.2rem !important;
+    }
+    h2, h3 {
+        color: #1a3a5c !important;
+        font-weight: 600 !important;
+        letter-spacing: -0.3px !important;
+    }
     .section-title {
-        font-size: 1.1em;
-        font-weight: 600;
-        color: #1a2b4a;
-        margin-bottom: 8px;
+        font-size: 1em;
+        font-weight: 700;
+        color: #0f2444;
+        margin-bottom: 12px;
+        padding-bottom: 8px;
+        border-bottom: 2px solid #e2e8f0;
+        letter-spacing: -0.2px;
+    }
+
+    /* ── Mensajes de estado ── */
+    .stAlert {
+        border-radius: 10px !important;
+        border: none !important;
+    }
+    .stSuccess > div {
+        background: #f0fdf4 !important;
+        border-left: 4px solid #22c55e !important;
+        border-radius: 10px !important;
+    }
+    .stInfo > div {
+        background: #eff6ff !important;
+        border-left: 4px solid #3b82f6 !important;
+        border-radius: 10px !important;
+    }
+    .stWarning > div {
+        background: #fffbeb !important;
+        border-left: 4px solid #f59e0b !important;
+        border-radius: 10px !important;
+    }
+    .stError > div {
+        background: #fef2f2 !important;
+        border-left: 4px solid #ef4444 !important;
+        border-radius: 10px !important;
+    }
+
+    /* ── Captions ── */
+    .stCaption {
+        color: #94a3b8 !important;
+        font-size: 0.82em !important;
+    }
+
+    /* ── Divisores ── */
+    hr {
+        border: none !important;
+        border-top: 1.5px solid #e2e8f0 !important;
+        opacity: 1 !important;
+        margin: 1.2rem 0 !important;
+    }
+
+    /* ── Formularios ── */
+    [data-testid="stForm"] {
+        background: white;
+        border-radius: 16px;
+        padding: 24px 28px;
+        border: 1.5px solid #e2e8f0;
+        box-shadow: 0 2px 12px rgba(0,0,0,0.04);
     }
 </style>
 """, unsafe_allow_html=True)
@@ -96,43 +372,131 @@ st.markdown("""
 # ─────────────────────────────────────────────
 if "chat_historia" not in st.session_state:
     st.session_state.chat_historia = []
-if "api_key" not in st.session_state:
-    st.session_state.api_key = ""
 if "rol" not in st.session_state:
     st.session_state.rol = None  # None = no logueado
 if "cliente_id_nueva_visita" not in st.session_state:
     st.session_state.cliente_id_nueva_visita = None
+if "login_intentos" not in st.session_state:
+    st.session_state.login_intentos = 0
+if "login_bloqueado_hasta" not in st.session_state:
+    st.session_state.login_bloqueado_hasta = None
 
 
 # ─────────────────────────────────────────────
 # LOGIN
 # ─────────────────────────────────────────────
-def pantalla_login():
-    col_center = st.columns([1, 2, 1])[1]
-    with col_center:
-        try:
-            st.image("logo.png", width=200)
-        except Exception:
-            st.markdown("## ⚓ Viamar CRM")
-        st.markdown("---")
-        st.markdown("### CRM de Visitas Comerciales")
-        clave = st.text_input("Contraseña", type="password", placeholder="Introduce tu contraseña")
-        if st.button("Entrar", type="primary", use_container_width=True):
-            try:
-                pwd_control   = st.secrets["PWD_CONTROL"]    # lista con dos contraseñas
-                pwd_comercial = st.secrets["PWD_COMERCIAL"]
-            except Exception:
-                pwd_control   = ["0077", "1919"]
-                pwd_comercial = "1234"
+_MAX_INTENTOS = 5
+_BLOQUEO_SEGUNDOS = 300  # 5 minutos
 
-            if clave in pwd_control:
-                st.session_state.rol = "control"
-                st.rerun()
-            elif clave == pwd_comercial:
-                st.session_state.rol = "comercial"
+
+def _get_pwd():
+    """Devuelve (pwd_control_list, pwd_comercial_str) desde secrets o valores de entorno."""
+    try:
+        return list(st.secrets["PWD_CONTROL"]), str(st.secrets["PWD_COMERCIAL"])
+    except Exception:
+        # Fallback a variables de entorno para desarrollo local
+        import os
+        ctrl = os.environ.get("PWD_CONTROL", "").split(",")
+        com  = os.environ.get("PWD_COMERCIAL", "")
+        if ctrl and com:
+            return [c.strip() for c in ctrl if c.strip()], com.strip()
+        # Si no hay nada configurado, bloquear con un mensaje claro
+        return [], ""
+
+
+def _login_bloqueado() -> bool:
+    """Devuelve True si el usuario está bloqueado por intentos fallidos."""
+    from datetime import datetime as _dt
+    hasta = st.session_state.login_bloqueado_hasta
+    if hasta and _dt.now() < hasta:
+        secs = int((hasta - _dt.now()).total_seconds())
+        st.error(f"Demasiados intentos fallidos. Espera {secs} segundos.")
+        return True
+    if hasta and _dt.now() >= hasta:
+        st.session_state.login_intentos = 0
+        st.session_state.login_bloqueado_hasta = None
+    return False
+
+
+def _registrar_intento_fallido():
+    from datetime import datetime as _dt, timedelta as _td
+    st.session_state.login_intentos += 1
+    if st.session_state.login_intentos >= _MAX_INTENTOS:
+        st.session_state.login_bloqueado_hasta = _dt.now() + _td(seconds=_BLOQUEO_SEGUNDOS)
+        st.error(f"Cuenta bloqueada por {_BLOQUEO_SEGUNDOS // 60} minutos tras {_MAX_INTENTOS} intentos fallidos.")
+    else:
+        restantes = _MAX_INTENTOS - st.session_state.login_intentos
+        st.error(f"Contraseña incorrecta. Intentos restantes: {restantes}")
+
+
+def _verificar_clave(clave: str) -> str | None:
+    """Devuelve el rol si la clave es correcta, None si no."""
+    pwd_control, pwd_comercial = _get_pwd()
+    if not pwd_control and not pwd_comercial:
+        st.error("Las contraseñas no están configuradas. Añade PWD_CONTROL y PWD_COMERCIAL en secrets.")
+        return None
+    if clave in pwd_control:
+        return "control"
+    if pwd_comercial and clave == pwd_comercial:
+        return "comercial"
+    return None
+
+
+def pantalla_login():
+    # Fondo de pantalla completa para login
+    st.markdown("""
+    <style>
+        .main { background: linear-gradient(135deg, #0c1e35 0%, #1a3a5c 50%, #0f2444 100%) !important; }
+        .block-container { display: flex; align-items: center; justify-content: center;
+                           min-height: 90vh; padding: 2rem !important; }
+    </style>
+    """, unsafe_allow_html=True)
+
+    col_center = st.columns([1, 1.6, 1])[1]
+    with col_center:
+        st.markdown("""
+        <div style="background:white;border-radius:20px;padding:40px 44px 36px;
+                    box-shadow:0 20px 60px rgba(0,0,0,0.25);text-align:center;">
+        """, unsafe_allow_html=True)
+
+        try:
+            st.image("logo.png", width=180)
+        except Exception:
+            st.markdown("""
+            <div style="font-size:2.5em;margin-bottom:4px">⚓</div>
+            <div style="font-size:1.4em;font-weight:800;color:#0f2444;letter-spacing:-0.5px">
+                Viamar CRM
+            </div>
+            """, unsafe_allow_html=True)
+
+        st.markdown("""
+        <div style="color:#64748b;font-size:0.9em;margin:8px 0 24px;font-weight:500">
+            CRM de Visitas Comerciales · Sun Ibiza
+        </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+        if _login_bloqueado():
+            st.stop()
+
+        clave = st.text_input("Contraseña", type="password",
+                              placeholder="Introduce tu contraseña",
+                              label_visibility="collapsed")
+        st.markdown("<div style='height:6px'></div>", unsafe_allow_html=True)
+        if st.button("Entrar →", type="primary", use_container_width=True):
+            rol = _verificar_clave(clave)
+            if rol:
+                st.session_state.rol = rol
+                st.session_state.login_intentos = 0
                 st.rerun()
             else:
-                st.error("Contraseña incorrecta")
+                _registrar_intento_fallido()
+
+        st.markdown("""
+        <div style="text-align:center;margin-top:18px;color:#94a3b8;font-size:0.78em">
+            ☀️ Sun Ibiza · Náutica Viamar
+        </div>
+        """, unsafe_allow_html=True)
 
 # Detectar modo visita rápida por URL (?modo=visita)
 MODO_VISITA = st.query_params.get("modo", "") == "visita"
@@ -147,19 +511,17 @@ if st.session_state.rol is None:
             except Exception:
                 st.markdown("## ☀️ Sun Ibiza")
             st.markdown("### ➕ Registrar Visita")
+            if _login_bloqueado():
+                st.stop()
             clave_v = st.text_input("Contraseña", type="password", key="pwd_visita")
             if st.button("Entrar", type="primary", use_container_width=True):
-                try:
-                    pwd_control   = st.secrets["PWD_CONTROL"]
-                    pwd_comercial = st.secrets["PWD_COMERCIAL"]
-                except Exception:
-                    pwd_control   = ["0077", "1919"]
-                    pwd_comercial = "1234"
-                if clave_v in pwd_control or clave_v == pwd_comercial:
-                    st.session_state.rol = "comercial" if clave_v == pwd_comercial else "control"
+                rol = _verificar_clave(clave_v)
+                if rol:
+                    st.session_state.rol = rol
+                    st.session_state.login_intentos = 0
                     st.rerun()
                 else:
-                    st.error("Contraseña incorrecta")
+                    _registrar_intento_fallido()
         st.stop()
     else:
         pantalla_login()
@@ -286,11 +648,11 @@ def get_temas_ops():
         return ["Precios", "Stock", "Garantía", "Soporte técnico", "Otro"]
 
 def _api_key():
-    """Obtiene la API key: primero secrets de Streamlit, luego session_state."""
+    """Obtiene la API key exclusivamente desde secrets de Streamlit."""
     try:
         return st.secrets["ANTHROPIC_API_KEY"]
     except Exception:
-        return st.session_state.get("api_key", "")
+        return ""
 
 
 # ─────────────────────────────────────────────
@@ -298,15 +660,28 @@ def _api_key():
 # ─────────────────────────────────────────────
 with st.sidebar:
     try:
-        st.image("logo.png", width=200)
+        st.image("logo.png", width=180)
     except Exception:
-        st.markdown("## ⚓ Viamar CRM")
+        st.markdown("""
+        <div style="text-align:center;padding:10px 0 4px">
+            <span style="font-size:2em">⚓</span><br>
+            <span style="color:#f1f5f9;font-size:1.1em;font-weight:700;letter-spacing:-0.3px">
+                Viamar CRM
+            </span>
+        </div>""", unsafe_allow_html=True)
 
+    st.markdown("""
+    <div style="text-align:center;margin-bottom:4px">
+        <span style="color:#64748b;font-size:0.75em;letter-spacing:0.5px;text-transform:uppercase;
+                     font-weight:600">CRM · Sun Ibiza</span>
+    </div>
+    """, unsafe_allow_html=True)
     st.markdown("---")
 
     # Menú según rol
     if st.session_state.rol == "control":
-        opciones_menu = ["📊 Dashboard", "➕ Nueva Visita", "📋 Visitas", "👥 Clientes", "✅ Tareas", "📈 Informes IA", "⚙️ Configuración"]
+        opciones_menu = ["📊 Dashboard", "➕ Nueva Visita", "📋 Visitas",
+                         "👥 Clientes", "✅ Tareas", "📈 Informes IA", "⚙️ Configuración"]
     else:
         opciones_menu = ["➕ Nueva Visita", "📋 Visitas", "👥 Clientes", "✅ Tareas"]
 
@@ -326,25 +701,35 @@ with st.sidebar:
         st.warning("No hay comerciales. Añade uno.")
         st.stop()
 
-    comercial_sel_nombre = st.selectbox("Comercial", nombres_com)
+    st.markdown('<span style="color:#64748b;font-size:0.78em;font-weight:600;'
+                'text-transform:uppercase;letter-spacing:0.5px">Comercial activo</span>',
+                unsafe_allow_html=True)
+    comercial_sel_nombre = st.selectbox("Comercial", nombres_com, label_visibility="collapsed")
     comercial_sel = next(c for c in comerciales if c["nombre"] == comercial_sel_nombre)
 
-    # API Key solo en modo control
+    # Estado API IA solo en modo control
     if st.session_state.rol == "control":
-        try:
-            st.secrets["ANTHROPIC_API_KEY"]
-            st.success("API IA configurada", icon="🤖")
-        except Exception:
-            api_key_input = st.text_input("API Key Anthropic", type="password",
-                                           value=st.session_state.api_key,
-                                           help="Pega aquí tu API Key de Anthropic")
-            if api_key_input:
-                st.session_state.api_key = api_key_input
-
         st.markdown("---")
-        with st.expander("+ Añadir comercial"):
-            nuevo_com = st.text_input("Nombre", key="input_nuevo_com")
-            if st.button("Añadir"):
+        if _api_key():
+            st.markdown("""
+            <div style="background:rgba(34,197,94,0.12);border:1px solid rgba(34,197,94,0.25);
+                        border-radius:8px;padding:8px 12px;font-size:0.82em;color:#86efac;
+                        display:flex;align-items:center;gap:6px">
+                🤖 <span>API IA activa</span>
+            </div>""", unsafe_allow_html=True)
+        else:
+            st.markdown("""
+            <div style="background:rgba(245,158,11,0.12);border:1px solid rgba(245,158,11,0.25);
+                        border-radius:8px;padding:8px 12px;font-size:0.82em;color:#fcd34d">
+                ⚠️ API IA no configurada
+            </div>""", unsafe_allow_html=True)
+
+        st.markdown("<div style='height:6px'></div>", unsafe_allow_html=True)
+        with st.expander("➕ Añadir comercial"):
+            nuevo_com = st.text_input("Nombre del comercial", key="input_nuevo_com",
+                                       label_visibility="collapsed",
+                                       placeholder="Nombre del comercial")
+            if st.button("Añadir", use_container_width=True):
                 if nuevo_com.strip():
                     try:
                         db.add_comercial(nuevo_com)
@@ -363,7 +748,22 @@ with st.sidebar:
 # PÁGINA: DASHBOARD
 # ══════════════════════════════════════════════
 if pagina == "📊 Dashboard":
-    st.title("📊 Dashboard Comercial")
+    hoy_str = date.today().strftime("%A, %d de %B de %Y")
+    st.markdown(f"""
+    <div style="display:flex;align-items:center;justify-content:space-between;
+                margin-bottom:1.4rem;">
+        <div>
+            <h1 style="margin:0;font-size:1.8em">Dashboard Comercial</h1>
+            <span style="color:#64748b;font-size:0.9em;font-weight:500">{hoy_str}</span>
+        </div>
+        <div style="background:white;border-radius:12px;padding:10px 18px;
+                    border:1.5px solid #e2e8f0;
+                    box-shadow:0 1px 4px rgba(0,0,0,0.05);
+                    color:#1a3a5c;font-weight:600;font-size:0.92em">
+            👤 {comercial_sel_nombre}
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
 
     # ── KPIs globales ──
     try:
@@ -378,67 +778,93 @@ if pagina == "📊 Dashboard":
     k2.metric("Visitas este mes", resumen["visitas_mes"])
     k3.metric("Visitas este año", resumen["visitas_anyo"])
     k4.metric("Clientes", resumen["total_clientes"])
-    k5.metric("Importe registrado €", f"{resumen['pipeline_euros']:,.0f} €")
-    k6.metric("Oportunidades calientes €", f"{resumen['pipeline_alta_euros']:,.0f} €")
+    k5.metric("Pipeline total", f"{resumen['pipeline_euros']:,.0f} €")
+    k6.metric("Oportunidades calientes", f"{resumen['pipeline_alta_euros']:,.0f} €")
 
-    st.markdown("---")
+    st.markdown("<div style='height:10px'></div>", unsafe_allow_html=True)
 
     # ── Gráficos ──
     col_g1, col_g2, col_g3 = st.columns([2, 1, 1])
 
     with col_g1:
-        st.markdown('<div class="section-title">Visitas por mes</div>', unsafe_allow_html=True)
+        st.markdown("""
+        <div style="background:white;border-radius:16px;padding:20px 22px 10px;
+                    border:1.5px solid #e2e8f0;box-shadow:0 1px 6px rgba(0,0,0,0.04)">
+        """, unsafe_allow_html=True)
+        st.markdown('<div class="section-title">📅 Visitas por mes</div>', unsafe_allow_html=True)
         anyo_sel = st.selectbox("Año", list(range(anyo_actual, anyo_actual - 4, -1)),
                                  key="anyo_dash", label_visibility="collapsed")
         stats_mes = db.stats_visitas_por_mes(anyo=anyo_sel)
         if stats_mes:
             df_mes = pd.DataFrame(stats_mes)
-            # Rellenar meses sin visitas
             todos_meses = [f"{anyo_sel}-{m:02d}" for m in range(1, 13)]
             df_mes = (pd.DataFrame({"mes": todos_meses})
                       .merge(df_mes, on="mes", how="left")
                       .fillna(0))
             df_mes["mes_label"] = df_mes["mes"].str[5:]
             fig = px.bar(df_mes, x="mes_label", y="total",
-                         color_discrete_sequence=["#1a73e8"],
+                         color_discrete_sequence=["#2563eb"],
                          labels={"mes_label": "", "total": "Visitas"})
-            fig.update_layout(margin=dict(t=10, b=10, l=0, r=0), height=240,
-                               plot_bgcolor="white", paper_bgcolor="white")
-            fig.update_yaxes(gridcolor="#f0f0f0")
+            fig.update_layout(margin=dict(t=6, b=6, l=0, r=0), height=230,
+                               plot_bgcolor="white", paper_bgcolor="white",
+                               font=dict(family="Inter, sans-serif"))
+            fig.update_traces(marker_line_width=0, marker_cornerradius=4)
+            fig.update_yaxes(gridcolor="#f1f5f9", gridwidth=1)
+            fig.update_xaxes(showgrid=False)
             st.plotly_chart(fig, use_container_width=True)
         else:
             st.info("Sin datos para este año")
+        st.markdown("</div>", unsafe_allow_html=True)
 
     with col_g2:
-        st.markdown('<div class="section-title">Tipo de contacto</div>', unsafe_allow_html=True)
+        st.markdown("""
+        <div style="background:white;border-radius:16px;padding:20px 22px 10px;
+                    border:1.5px solid #e2e8f0;box-shadow:0 1px 6px rgba(0,0,0,0.04)">
+        """, unsafe_allow_html=True)
+        st.markdown('<div class="section-title">📞 Tipo de contacto</div>', unsafe_allow_html=True)
         stats_tipo = db.stats_visitas_por_tipo()
         if stats_tipo:
             df_tipo = pd.DataFrame(stats_tipo)
             fig = px.pie(df_tipo, values="total", names="tipo_contacto",
-                         color_discrete_sequence=px.colors.qualitative.Set2,
-                         hole=0.4)
-            fig.update_layout(margin=dict(t=10, b=10, l=0, r=0), height=240,
-                               showlegend=True, legend=dict(font=dict(size=11)))
+                         color_discrete_sequence=["#2563eb","#0891b2","#7c3aed","#059669","#f59e0b"],
+                         hole=0.45)
+            fig.update_layout(margin=dict(t=6, b=6, l=0, r=0), height=230,
+                               showlegend=True,
+                               legend=dict(font=dict(size=10, family="Inter, sans-serif"),
+                                           orientation="h", y=-0.15),
+                               font=dict(family="Inter, sans-serif"))
+            fig.update_traces(textfont=dict(family="Inter, sans-serif"))
             st.plotly_chart(fig, use_container_width=True)
         else:
             st.info("Sin datos")
+        st.markdown("</div>", unsafe_allow_html=True)
 
     with col_g3:
-        st.markdown('<div class="section-title">Oportunidades</div>', unsafe_allow_html=True)
+        st.markdown("""
+        <div style="background:white;border-radius:16px;padding:20px 22px 10px;
+                    border:1.5px solid #e2e8f0;box-shadow:0 1px 6px rgba(0,0,0,0.04)">
+        """, unsafe_allow_html=True)
+        st.markdown('<div class="section-title">🎯 Oportunidades</div>', unsafe_allow_html=True)
         stats_opo = db.stats_oportunidades()
         if stats_opo:
             df_opo = pd.DataFrame(stats_opo)
+            COLOR_OPO_MODERN = {"Ninguna": "#cbd5e1", "Baja": "#60a5fa",
+                                "Media": "#f59e0b", "Alta": "#22c55e"}
             fig = px.bar(df_opo, x="oportunidad", y="total",
-                         color="oportunidad", color_discrete_map=COLOR_OPO,
+                         color="oportunidad", color_discrete_map=COLOR_OPO_MODERN,
                          labels={"oportunidad": "", "total": "Nº visitas"})
-            fig.update_layout(margin=dict(t=10, b=10, l=0, r=0), height=240,
-                               showlegend=False, plot_bgcolor="white", paper_bgcolor="white")
-            fig.update_yaxes(gridcolor="#f0f0f0")
+            fig.update_layout(margin=dict(t=6, b=6, l=0, r=0), height=230,
+                               showlegend=False, plot_bgcolor="white", paper_bgcolor="white",
+                               font=dict(family="Inter, sans-serif"))
+            fig.update_traces(marker_line_width=0, marker_cornerradius=4)
+            fig.update_yaxes(gridcolor="#f1f5f9", gridwidth=1)
+            fig.update_xaxes(showgrid=False)
             st.plotly_chart(fig, use_container_width=True)
         else:
             st.info("Sin datos")
+        st.markdown("</div>", unsafe_allow_html=True)
 
-    st.markdown("---")
+    st.markdown("<div style='height:12px'></div>", unsafe_allow_html=True)
 
     # ── Informe Agenda ──
     with st.expander("📄 Generar informe agenda de visitas (exportable a PDF)"):
@@ -530,12 +956,17 @@ if pagina == "📊 Dashboard":
             )
             st.caption("💡 Tip: abre el archivo descargado en el navegador y pulsa Ctrl+P → 'Guardar como PDF'")
 
-    st.markdown("---")
+    st.markdown("<div style='height:12px'></div>", unsafe_allow_html=True)
 
     # ── Alertas + Chat IA en columnas ──
     col_al, col_chat = st.columns([1, 2])
 
     with col_al:
+        st.markdown("""
+        <div style="background:white;border-radius:16px;padding:20px 22px;
+                    border:1.5px solid #e2e8f0;box-shadow:0 1px 6px rgba(0,0,0,0.04);
+                    min-height:300px">
+        """, unsafe_allow_html=True)
         st.markdown('<div class="section-title">⚠️ Alertas</div>', unsafe_allow_html=True)
 
         pendientes = db.get_seguimientos_pendientes(comercial_id=comercial_sel["id"])
@@ -552,18 +983,23 @@ if pagina == "📊 Dashboard":
 
         sin_visita = db.clientes_sin_visita_reciente(dias=60)
         if sin_visita:
-            st.markdown('<div class="section-title" style="margin-top:12px">🕐 Sin visita (60d)</div>',
+            st.markdown('<div class="section-title" style="margin-top:16px">🕐 Sin visita (60 días)</div>',
                         unsafe_allow_html=True)
             for c in sin_visita[:5]:
                 ultima = c.get("ultima_visita") or "Nunca"
                 st.markdown(
-                    f'<div class="alerta" style="border-color:#94a3b8">'
+                    f'<div class="alerta" style="border-color:#94a3b8;background:#f8fafc">'
                     f'👤 <b>{c["nombre"]}</b> ({c.get("zona","-")})<br>'
                     f'<small>Última visita: {ultima}</small></div>',
                     unsafe_allow_html=True
                 )
+        st.markdown("</div>", unsafe_allow_html=True)
 
     with col_chat:
+        st.markdown("""
+        <div style="background:white;border-radius:16px;padding:20px 22px;
+                    border:1.5px solid #e2e8f0;box-shadow:0 1px 6px rgba(0,0,0,0.04)">
+        """, unsafe_allow_html=True)
         st.markdown('<div class="section-title">🤖 Pregunta a la IA sobre tus visitas</div>',
                     unsafe_allow_html=True)
 
@@ -641,9 +1077,15 @@ if pagina == "📊 Dashboard":
                         })
                 st.rerun()
 
+        st.markdown("</div>", unsafe_allow_html=True)
+
     # ── Copia de seguridad ──
     if st.session_state.rol == "control":
-        st.markdown("---")
+        st.markdown("<div style='height:12px'></div>", unsafe_allow_html=True)
+        st.markdown("""
+        <div style="background:white;border-radius:16px;padding:20px 22px;
+                    border:1.5px solid #e2e8f0;box-shadow:0 1px 6px rgba(0,0,0,0.04)">
+        """, unsafe_allow_html=True)
         st.markdown('<div class="section-title">💾 Copia de seguridad</div>', unsafe_allow_html=True)
         col_bk1, col_bk2 = st.columns(2)
         with col_bk1:
@@ -680,13 +1122,19 @@ if pagina == "📊 Dashboard":
                     )
                 else:
                     st.info("No hay clientes aún.")
+        st.markdown("</div>", unsafe_allow_html=True)
 
 
 # ══════════════════════════════════════════════
 # PÁGINA: NUEVA VISITA
 # ══════════════════════════════════════════════
 elif pagina == "➕ Nueva Visita":
-    st.title("➕ Registrar Nueva Visita")
+    st.markdown("""
+    <h1 style="margin-bottom:0.1rem">➕ Registrar Nueva Visita</h1>
+    <p style="color:#64748b;font-size:0.9em;margin-bottom:1.4rem">
+        Selecciona o crea el cliente y rellena los datos de la visita
+    </p>
+    """, unsafe_allow_html=True)
 
     st.subheader("1. Cliente")
     modo = st.radio("", ["Buscar cliente existente", "Crear cliente nuevo"], horizontal=True)
@@ -776,7 +1224,12 @@ elif pagina == "➕ Nueva Visita":
 # PÁGINA: VISITAS
 # ══════════════════════════════════════════════
 elif pagina == "📋 Visitas":
-    st.title("📋 Historial de Visitas")
+    st.markdown("""
+    <h1 style="margin-bottom:0.1rem">📋 Historial de Visitas</h1>
+    <p style="color:#64748b;font-size:0.9em;margin-bottom:1.2rem">
+        Consulta, filtra y edita el registro de visitas comerciales
+    </p>
+    """, unsafe_allow_html=True)
 
     with st.expander("Filtros", expanded=True):
         fc1, fc2, fc3, fc4, fc5 = st.columns(5)
@@ -893,7 +1346,12 @@ elif pagina == "📋 Visitas":
 # PÁGINA: CLIENTES
 # ══════════════════════════════════════════════
 elif pagina == "👥 Clientes":
-    st.title("👥 Clientes")
+    st.markdown("""
+    <h1 style="margin-bottom:0.1rem">👥 Clientes</h1>
+    <p style="color:#64748b;font-size:0.9em;margin-bottom:1.2rem">
+        Gestiona el directorio de clientes y consulta fichas individuales
+    </p>
+    """, unsafe_allow_html=True)
 
     tab_lista, tab_ficha, tab_nuevo, tab_editar = st.tabs([
         "Lista de clientes", "📋 Ficha de cliente", "Nuevo cliente", "Editar cliente"
@@ -1048,7 +1506,12 @@ elif pagina == "👥 Clientes":
 # PÁGINA: TAREAS
 # ══════════════════════════════════════════════
 elif pagina == "✅ Tareas":
-    st.title("✅ Tareas y Seguimientos")
+    st.markdown("""
+    <h1 style="margin-bottom:0.1rem">✅ Tareas y Seguimientos</h1>
+    <p style="color:#64748b;font-size:0.9em;margin-bottom:1.2rem">
+        Pendientes, vencimientos y acciones de seguimiento
+    </p>
+    """, unsafe_allow_html=True)
 
     es_control = st.session_state.rol == "control"
 
@@ -1160,7 +1623,12 @@ elif pagina == "✅ Tareas":
 # PÁGINA: INFORMES IA
 # ══════════════════════════════════════════════
 elif pagina == "📈 Informes IA":
-    st.title("📈 Informes con Inteligencia Artificial")
+    st.markdown("""
+    <h1 style="margin-bottom:0.1rem">📈 Informes IA</h1>
+    <p style="color:#64748b;font-size:0.9em;margin-bottom:1.2rem">
+        Análisis inteligente con Claude · informes de cliente, pipeline y seguimientos
+    </p>
+    """, unsafe_allow_html=True)
 
     api_key_ia = _api_key()
     if not api_key_ia:
@@ -1256,7 +1724,12 @@ elif pagina == "📈 Informes IA":
 # PÁGINA: CONFIGURACIÓN
 # ══════════════════════════════════════════════
 elif pagina == "⚙️ Configuración":
-    st.title("⚙️ Configuración")
+    st.markdown("""
+    <h1 style="margin-bottom:0.1rem">⚙️ Configuración</h1>
+    <p style="color:#64748b;font-size:0.9em;margin-bottom:1.2rem">
+        Temas de visita, copias de seguridad y ajustes del sistema
+    </p>
+    """, unsafe_allow_html=True)
 
     tab_temas, tab_backup = st.tabs(["🏷️ Temas de visita", "💾 Copia de seguridad"])
 
