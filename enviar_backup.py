@@ -23,7 +23,13 @@ GMAIL_PASS   = os.environ["GMAIL_PASSWORD"]
 EMAIL_DEST   = os.environ["EMAIL_DESTINO"]
 
 def get_conn():
-    return psycopg2.connect(DATABASE_URL)
+    try:
+        conn = psycopg2.connect(DATABASE_URL, connect_timeout=15)
+        return conn
+    except psycopg2.OperationalError as e:
+        print(f"❌ Error de conexión a Supabase: {e}")
+        print("Posible causa: proyecto pausado en Supabase. Ve a supabase.com y reactívalo.")
+        raise
 
 def exportar_visitas():
     conn = get_conn()
@@ -65,11 +71,16 @@ def exportar_tareas_pendientes():
 
 # ── Generar Excel con tres hojas ──
 def generar_excel():
+    # Obtener datos primero — si falla la BD el error es claro antes de tocar el Excel
+    df_visitas  = exportar_visitas()
+    df_clientes = exportar_clientes()
+    df_tareas   = exportar_tareas_pendientes()
+
     buf = io.BytesIO()
     with pd.ExcelWriter(buf, engine="openpyxl") as writer:
-        exportar_visitas().to_excel(writer, index=False, sheet_name="Visitas")
-        exportar_clientes().to_excel(writer, index=False, sheet_name="Clientes")
-        exportar_tareas_pendientes().to_excel(writer, index=False, sheet_name="Tareas pendientes")
+        df_visitas.to_excel(writer, index=False, sheet_name="Visitas")
+        df_clientes.to_excel(writer, index=False, sheet_name="Clientes")
+        df_tareas.to_excel(writer, index=False, sheet_name="Tareas pendientes")
     return buf.getvalue()
 
 # ── Enviar email ──

@@ -4,10 +4,44 @@ Base de datos: PostgreSQL en Supabase (cloud)
 """
 
 import os
+import re
 import psycopg2
 import psycopg2.extras
 from datetime import date, datetime
 import streamlit as st
+
+
+# ─────────────────────────────────────────────
+# VALIDACIÓN DE DATOS
+# ─────────────────────────────────────────────
+
+def validar_nombre(nombre: str) -> str:
+    """Valida y limpia un nombre. Lanza ValueError si no es válido."""
+    nombre = nombre.strip()
+    if not nombre:
+        raise ValueError("El nombre no puede estar vacío.")
+    if len(nombre) > 200:
+        raise ValueError("El nombre no puede superar 200 caracteres.")
+    return nombre
+
+
+def validar_telefono(telefono: str) -> str:
+    """Limpia el teléfono; acepta vacío o formato internacional básico."""
+    telefono = telefono.strip()
+    if telefono and not re.match(r"^[\d\s\+\-\(\)]{6,20}$", telefono):
+        raise ValueError("Teléfono no válido. Usa solo dígitos, espacios, +, - o paréntesis.")
+    return telefono
+
+
+def validar_importe(importe) -> float:
+    """Valida que el importe sea un número entre 0 y 9.999.999."""
+    try:
+        importe = float(importe)
+    except (TypeError, ValueError):
+        raise ValueError("El importe debe ser un número.")
+    if importe < 0 or importe > 9_999_999:
+        raise ValueError("El importe debe estar entre 0 y 9.999.999 €.")
+    return importe
 
 
 def get_conn():
@@ -132,6 +166,7 @@ def inicializar_db():
 # COMERCIALES
 # ─────────────────────────────────────────────
 
+@st.cache_data(ttl=300)
 def get_comerciales(solo_activos=True):
     if solo_activos:
         return _execute("SELECT * FROM comerciales WHERE activo=1 ORDER BY nombre", fetch="all")
@@ -140,6 +175,7 @@ def get_comerciales(solo_activos=True):
 
 def add_comercial(nombre):
     _execute("INSERT INTO comerciales (nombre) VALUES (%s)", (nombre.strip(),))
+    get_comerciales.clear()
 
 
 # ─────────────────────────────────────────────
@@ -164,20 +200,28 @@ def get_cliente(cliente_id):
 
 
 def add_cliente(nombre, telefono="", zona="", notas=""):
-    return _execute(
+    nombre   = validar_nombre(nombre)
+    telefono = validar_telefono(telefono)
+    cid = _execute(
         "INSERT INTO clientes (nombre, telefono, zona, notas, fecha_alta) VALUES (%s,%s,%s,%s,%s) RETURNING id",
-        (nombre.strip(), telefono.strip(), zona.strip(), notas.strip(), date.today().isoformat()),
+        (nombre, telefono, zona.strip()[:100], notas.strip()[:1000], date.today().isoformat()),
         fetch="lastrowid"
     )
+    get_zonas.clear()
+    return cid
 
 
 def update_cliente(cliente_id, nombre, telefono, zona, notas):
+    nombre   = validar_nombre(nombre)
+    telefono = validar_telefono(telefono)
     _execute(
         "UPDATE clientes SET nombre=%s, telefono=%s, zona=%s, notas=%s WHERE id=%s",
-        (nombre.strip(), telefono.strip(), zona.strip(), notas.strip(), cliente_id)
+        (nombre, telefono, zona.strip()[:100], notas.strip()[:1000], cliente_id)
     )
+    get_zonas.clear()
 
 
+@st.cache_data(ttl=300)
 def get_zonas():
     rows = _execute("SELECT DISTINCT zona FROM clientes WHERE zona != '' AND zona IS NOT NULL ORDER BY zona", fetch="all")
     return [r["zona"] for r in rows]
@@ -193,15 +237,16 @@ def _fmt_date(d):
 
 def add_visita(cliente_id, comercial_id, fecha, tipo_contacto, comentarios,
                temas, seguimiento, fecha_seguimiento, oportunidad, importe_estimado):
+    importe_estimado = validar_importe(importe_estimado or 0)
     _execute("""
         INSERT INTO visitas
             (cliente_id, comercial_id, fecha, tipo_contacto, comentarios,
              temas, seguimiento, fecha_seguimiento, oportunidad, importe_estimado, fecha_registro)
         VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
     """, (
-        cliente_id, comercial_id, _fmt_date(fecha), tipo_contacto, comentarios,
-        temas, seguimiento, _fmt_date(fecha_seguimiento),
-        oportunidad, importe_estimado or 0, datetime.now().isoformat()
+        cliente_id, comercial_id, _fmt_date(fecha), tipo_contacto, (comentarios or "").strip(),
+        (temas or "").strip(), (seguimiento or "").strip(), _fmt_date(fecha_seguimiento),
+        oportunidad, importe_estimado, datetime.now().isoformat()
     ))
 
 
@@ -327,9 +372,9 @@ def clientes_sin_visita_reciente(dias=60):
         FROM clientes c
         LEFT JOIN visitas v ON v.cliente_id = c.id
         GROUP BY c.id, c.nombre, c.telefono, c.zona, c.notas, c.fecha_alta
-        HAVING MAX(v.fecha) IS NULL OR MAX(v.fecha) < (CURRENT_DATE - INTERVAL '%s days')::text
+        HAVING MAX(v.fecha) IS NULL OR MAX(v.fecha) < (CURRENT_DATE - (%s || ' days')::INTERVAL)::text
         ORDER BY ultima_visita ASC NULLS FIRST
-    """ % dias, fetch="all")
+    """, (str(int(dias)),), fetch="all")
 
 
 def stats_resumen_global():
@@ -365,6 +410,7 @@ def stats_resumen_global():
 # TEMAS CONFIGURABLES
 # ─────────────────────────────────────────────
 
+@st.cache_data(ttl=600)
 def get_temas():
     rows = _execute("SELECT * FROM temas_config ORDER BY orden, nombre", fetch="all")
     return [r["nombre"] for r in rows]
@@ -373,15 +419,18 @@ def get_temas():
 def add_tema(nombre):
     orden = _execute("SELECT COALESCE(MAX(orden),0)+1 AS n FROM temas_config", fetch="one")["n"]
     _execute("INSERT INTO temas_config (nombre, orden) VALUES (%s, %s)", (nombre.strip(), orden))
+    get_temas.clear()
 
 
 def delete_tema(nombre):
     _execute("DELETE FROM temas_config WHERE nombre=%s", (nombre,))
+    get_temas.clear()
 
 
 def reordenar_temas(lista_nombres):
     for i, nombre in enumerate(lista_nombres):
         _execute("UPDATE temas_config SET orden=%s WHERE nombre=%s", (i, nombre))
+    get_temas.clear()
 
 
 # ─────────────────────────────────────────────
@@ -390,7 +439,7 @@ def reordenar_temas(lista_nombres):
 
 def exportar_visitas_csv():
     """Devuelve todas las visitas como DataFrame para exportar."""
-    import pandas as pd
+    import pandas as pd  # pandas es opcional; no se importa en el módulo para no forzar dependencia
     rows = _execute("""
         SELECT v.id, v.fecha, c.nombre AS cliente, c.zona, c.telefono,
                co.nombre AS comercial, v.tipo_contacto, v.temas,
@@ -405,7 +454,7 @@ def exportar_visitas_csv():
 
 
 def exportar_clientes_csv():
-    import pandas as pd
+    import pandas as pd  # pandas es opcional; no se importa en el módulo para no forzar dependencia
     rows = _execute("SELECT * FROM clientes ORDER BY nombre", fetch="all")
     return pd.DataFrame(rows) if rows else pd.DataFrame()
 
@@ -455,7 +504,6 @@ def get_tareas_completadas(comercial_id=None, limite=50):
 
 def completar_tarea(visita_id, resultado):
     """Marca una tarea como completada con su resultado."""
-    from datetime import datetime
     _execute("""
         UPDATE visitas
         SET tarea_estado = 'completada',
