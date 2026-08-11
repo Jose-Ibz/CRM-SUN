@@ -3,6 +3,7 @@ name: Backup Semanal CRM
 on:
   schedule:
     - cron: '0 7 * * 1'  # Cada lunes a las 7:00 AM (hora UTC = 8:00 España)
+    - cron: '0 7 * * 4'  # Cada jueves a las 7:00 AM (hora UTC = 8:00 España)
   workflow_dispatch:       # También se puede lanzar manualmente desde GitHub
 
 jobs:
